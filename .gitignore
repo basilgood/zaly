@@ -1,6 +1,9 @@
 # Claude
 .claude
 
+# direnv
+.envrc
+
 # dependencies (bun install)
 node_modules
 
