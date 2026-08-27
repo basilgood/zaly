@@ -145,6 +145,24 @@ export class Input extends Node<InputState, InputEvents> {
       this.#preferredCol = undefined
       this.state.cursor = c < v.length ? c + 1 : c
     },
+    "input.cursorWordLeft": (): void => {
+      const v = this.state.value ?? ""
+      const c = this.#cursor()
+      this.#preferredCol = undefined
+      let i = c
+      while (i > 0 && isWhitespace(v[i - 1])) i--
+      while (i > 0 && !isWhitespace(v[i - 1])) i--
+      this.state.cursor = i
+    },
+    "input.cursorWordRight": (): void => {
+      const v = this.state.value ?? ""
+      const c = this.#cursor()
+      this.#preferredCol = undefined
+      let i = c
+      while (i < v.length && !isWhitespace(v[i])) i++
+      while (i < v.length && isWhitespace(v[i])) i++
+      this.state.cursor = i
+    },
     "input.cursorUp": (): void => {
       const v = this.state.value ?? ""
       const { col, line } = posToLineCol(v, this.#cursor())
@@ -185,6 +203,29 @@ export class Input extends Node<InputState, InputEvents> {
       if (i === c) return
       this.#historyEdit()
       this.state.set({ cursor: i, value: v.slice(0, i) + v.slice(c) })
+    },
+    "input.deleteLineEnd": (): void => {
+      // Bash `ctrl-k`: delete from the cursor to the end of the current
+      // logical line, keeping the newline.
+      const v = this.state.value ?? ""
+      const c = this.#cursor()
+      const end = lineEndPos(v, c)
+      if (c === end) return
+      this.#historyEdit()
+      this.#preferredCol = undefined
+      this.state.set({ cursor: c, value: v.slice(0, c) + v.slice(end) })
+    },
+    "input.deleteLineStart": (): void => {
+      // Bash `ctrl-u`: delete from the start of the current logical line up
+      // to (but not including) the cursor.
+      const v = this.state.value ?? ""
+      const c = this.#cursor()
+      const { line } = posToLineCol(v, c)
+      const start = lineColToPos(v, line, 0)
+      if (c === start) return
+      this.#historyEdit()
+      this.#preferredCol = undefined
+      this.state.set({ cursor: start, value: v.slice(0, start) + v.slice(c) })
     },
     "input.insertNewline": (): void => {
       // Smart indent: copy the leading whitespace of the current

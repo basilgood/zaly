@@ -169,7 +169,7 @@ export function appActions({ app }: { app: App }) {
     "app.scroll-down": {
       desc: "Scroll down in the message history.",
       fn: () => app.renderer.stream.scrollDown(),
-      keys: ["pagedown", "ctrl-d"],
+      keys: ["pagedown", "ctrl-f"],
     },
     "app.scroll-top": {
       cmd: "scroll-top",
@@ -180,7 +180,7 @@ export function appActions({ app }: { app: App }) {
     "app.scroll-up": {
       desc: "Scroll up in the message history.",
       fn: () => app.renderer.stream.scrollUp(),
-      keys: ["pageup", "ctrl-u"],
+      keys: ["pageup", "ctrl-b"],
     },
     "app.stop": {
       cmd: "stop",

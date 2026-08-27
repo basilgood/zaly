@@ -55,6 +55,16 @@ export const defaultActions: Record<BuiltinAction, ActionDef> = {
     hidden: true,
     keys: ["right"],
   },
+  "input.cursorWordLeft": {
+    desc: "move cursor left one word",
+    hidden: true,
+    keys: ["alt-left", "ctrl-left"],
+  },
+  "input.cursorWordRight": {
+    desc: "move cursor right one word",
+    hidden: true,
+    keys: ["alt-right", "ctrl-right"],
+  },
   "input.cursorUp": {
     desc: "move cursor up one line",
     hidden: true,
@@ -70,6 +80,16 @@ export const defaultActions: Record<BuiltinAction, ActionDef> = {
     hidden: true,
     keys: ["delete"],
   },
+  "input.deleteLineEnd": {
+    desc: "delete from the cursor to the end of the line",
+    hidden: true,
+    keys: ["ctrl-k"],
+  },
+  "input.deleteLineStart": {
+    desc: "delete from the start of the line to the cursor",
+    hidden: true,
+    keys: ["ctrl-u"],
+  },
   "input.deleteWordBack": {
     desc: "delete the word before the cursor",
     hidden: true,
@@ -78,7 +98,7 @@ export const defaultActions: Record<BuiltinAction, ActionDef> = {
   "input.insertNewline": {
     desc: "insert a newline at the cursor (copies leading indent)",
     hidden: true,
-    keys: ["shift-enter", "alt-enter"],
+    keys: ["shift-enter", "alt-enter", "ctrl-j"],
   },
   "input.insertTab": {
     desc: "insert an indent (two spaces) at the cursor",
@@ -137,12 +157,12 @@ export const defaultActions: Record<BuiltinAction, ActionDef> = {
   "select.page-down": {
     desc: "move down one page",
     hidden: true,
-    keys: ["pagedown", "ctrl-d"],
+    keys: ["pagedown", "ctrl-f"],
   },
   "select.page-up": {
     desc: "move up one page",
     hidden: true,
-    keys: ["pageup", "ctrl-u"],
+    keys: ["pageup", "ctrl-b"],
   },
   "select.prev": {
     desc: "move to the previous item",
