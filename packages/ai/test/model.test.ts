@@ -1,3 +1,4 @@
+import type { Message } from "../src/types.ts"
 import type { Provider, StreamEvent } from "../src/provider.ts"
 
 import { describe, expect, test } from "vitest"
@@ -54,6 +55,72 @@ describe("loadModel — error paths", () => {
     await expect(models.load("not-a-real-provider/not-a-real-model")).rejects.toThrow(
       /Model.*not found/s
     )
+  })
+})
+
+describe("Model.stream — attachment demotion", () => {
+  let captured: Message[] = []
+
+  providerRegistry.register(
+    "mock-demote",
+    (): Promise<Provider<"mock-demote">> =>
+      Promise.resolve({
+        id: "mock-demote",
+        async *stream(req) {
+          captured = req.ctx.messages
+          yield { finishReason: "stop", type: "finish", usage: { input: 1, output: 1 } }
+        },
+      })
+  )
+
+  const demoteModels = modelCollection()
+  demoteModels.register({
+    name: "Demote",
+    api: "mock-api",
+    id: "mock-demote",
+    models: [
+      {
+        id: "text-only",
+        contextSize: 100_000,
+        maxTokens: 4096,
+        input: ["text"],
+        name: "Text Only",
+        api: "mock-demote" as never,
+        reasoning: false,
+      },
+    ],
+  })
+
+  test("demotes a nested tool-result image for a text-only model", async () => {
+    const model = await demoteModels.load("mock-demote/text-only")
+    await model.stream({
+      messages: [
+        {
+          role: "assistant",
+          content: [{ type: "tool-call", id: "call_1", name: "read", params: { path: "x.png" } }],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              id: "call_1",
+              name: "read",
+              content: [
+                { type: "image", mime: "image/png", source: { type: "base64", data: "AAAA" } },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const toolMsg = captured.find((m) => m.role === "tool")
+    const result = toolMsg!.content[0] as { content: unknown }
+    // The nested image must be demoted to a `<image>` MetaPart, not left
+    // as an ImagePart that the provider would inline to base64.
+    expect(result.content).toEqual([
+      { data: { mime: "image/png" }, tag: "image", type: "meta" },
+    ])
   })
 })
 

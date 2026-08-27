@@ -16,6 +16,7 @@ import type { AnyProvider } from "./providers/registry.ts"
 import type {
   AnyPart,
   Attachment,
+  Content,
   Cost,
   Message,
   Modality,
@@ -81,6 +82,13 @@ export class Model<T extends AnyProvider = string> {
     ct = ct
       .map("tool-result", (part) => (toolIds.has(part.id) ? part : undefined))
       .map("tool-call", (part) => (toolIds.has(part.id) ? part : undefined))
+    // Demote attachments nested inside tool-result content too.
+    ct = ct.rewrite((parts) =>
+      parts.map((p) => {
+        if (p.type !== "tool-result" || typeof p.content === "string") return p
+        return { ...p, content: this.#ct.runSync(p.content) as Content }
+      })
+    )
     const ret: Message[] = []
     const reasoning = opts.reasoning && opts.reasoning.effort !== "off"
     for (const m of messages) {
