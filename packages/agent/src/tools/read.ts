@@ -146,6 +146,12 @@ export const readTool = defineTool({
       })
     }
 
+    // Skip the expensive conversion when the model can't take the attachment.
+    const model = ctx.agent?.model
+    if (model && !model.canAttach(file.type as never)) {
+      return [{ data: { mime: file.mime }, tag: file.type, type: "meta" }]
+    }
+
     const att = await toAttachment(file)
     if (att) return [att]
 
