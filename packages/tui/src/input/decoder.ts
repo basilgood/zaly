@@ -332,7 +332,7 @@ function decodeChar(buf: string, out: InputEvent[], opts: { alt: boolean }): num
     out.push(key({ alt, name: "tab" }))
     return 1
   }
-  if (code === 0x0a || code === 0x0d) {
+  if (code === 0x0d) {
     out.push(key({ alt, name: "enter" }))
     return 1
   }
@@ -345,9 +345,10 @@ function decodeChar(buf: string, out: InputEvent[], opts: { alt: boolean }): num
     return 1
   }
   if (code >= 0x01 && code <= 0x1a) {
-    // Ctrl + letter. Except 0x09 / 0x0a / 0x0d which we already mapped above
-    // to their dedicated names (tab / enter), so the user's handler can
-    // keyMatches("tab") without also writing keyMatches("ctrl-i").
+    // Ctrl + letter. Except 0x09 / 0x0d which we already mapped above to
+    // their dedicated names (tab / enter), so the user's handler can
+    // keyMatches("tab") without also writing keyMatches("ctrl-i"). 0x0a
+    // (ctrl-j) falls through here so it can be bound independently.
     const letter = String.fromCharCode(code + 0x60)
     out.push(key({ alt, ctrl: true, name: letter }))
     return 1
