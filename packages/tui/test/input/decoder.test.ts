@@ -58,6 +58,10 @@ describe("Decoder — control characters", () => {
     expect(keys(new Decoder(), "\r")).toEqual([{ mods: "", name: "enter" }])
   })
 
+  test("ctrl-j via 0x0a", () => {
+    expect(keys(new Decoder(), "\n")).toEqual([{ mods: "c", name: "j" }])
+  })
+
   test("tab via 0x09", () => {
     expect(keys(new Decoder(), "\t")).toEqual([{ mods: "", name: "tab" }])
   })

@@ -240,6 +240,50 @@ describe("Input.actions — cursor motion", () => {
   })
 })
 
+describe("Input.actions — line deletion", () => {
+  test("deleteLineEnd deletes from cursor to end of the line", () => {
+    const n = input({ cursor: 6, value: "hello world" })
+    n.actions["input.deleteLineEnd"]()
+    expect(n.state.value).toBe("hello ")
+    expect(n.state.cursor).toBe(6)
+  })
+
+  test("deleteLineEnd stops at the newline, keeping the next line", () => {
+    const n = input({ cursor: 2, value: "ab\ndefg" })
+    n.actions["input.deleteLineEnd"]()
+    expect(n.state.value).toBe("ab\ndefg")
+    expect(n.state.cursor).toBe(2)
+  })
+
+  test("deleteLineEnd at end of line is a no-op", () => {
+    const n = input({ cursor: 11, value: "hello world" })
+    n.actions["input.deleteLineEnd"]()
+    expect(n.state.value).toBe("hello world")
+    expect(n.state.cursor).toBe(11)
+  })
+
+  test("deleteLineStart deletes from line start to cursor", () => {
+    const n = input({ cursor: 6, value: "hello world" })
+    n.actions["input.deleteLineStart"]()
+    expect(n.state.value).toBe("world")
+    expect(n.state.cursor).toBe(0)
+  })
+
+  test("deleteLineStart keeps the previous line when on a later line", () => {
+    const n = input({ cursor: 7, value: "abc\ndefg" })
+    n.actions["input.deleteLineStart"]()
+    expect(n.state.value).toBe("abc\ng")
+    expect(n.state.cursor).toBe(4)
+  })
+
+  test("deleteLineStart at line start is a no-op", () => {
+    const n = input({ cursor: 0, value: "hello" })
+    n.actions["input.deleteLineStart"]()
+    expect(n.state.value).toBe("hello")
+    expect(n.state.cursor).toBe(0)
+  })
+})
+
 describe("Input.actions — word deletion", () => {
   test("deleteWordBack eats the previous word", () => {
     const n = input({ cursor: 11, value: "hello world" })
@@ -279,6 +323,64 @@ describe("Input.actions — word deletion", () => {
     n.actions["input.deleteCharForward"]()
     expect(n.state.value).toBe("x")
     expect(n.state.cursor).toBe(1)
+  })
+})
+
+describe("Input.actions — word cursor moves", () => {
+  test("cursorWordLeft jumps to the previous word start", () => {
+    const n = input({ cursor: 11, value: "hello world" })
+    n.actions["input.cursorWordLeft"]()
+    expect(n.state.cursor).toBe(6)
+  })
+
+  test("cursorWordLeft from the middle of a word jumps to its start", () => {
+    const n = input({ cursor: 8, value: "hello world" })
+    n.actions["input.cursorWordLeft"]()
+    expect(n.state.cursor).toBe(6)
+  })
+
+  test("cursorWordLeft from trailing spaces skips them plus the word", () => {
+    const n = input({ cursor: 8, value: "hello   " })
+    n.actions["input.cursorWordLeft"]()
+    expect(n.state.cursor).toBe(0)
+  })
+
+  test("cursorWordLeft at the start is a no-op", () => {
+    const n = input({ cursor: 0, value: "hello world" })
+    n.actions["input.cursorWordLeft"]()
+    expect(n.state.cursor).toBe(0)
+  })
+
+  test("cursorWordRight jumps to the next word start", () => {
+    const n = input({ cursor: 0, value: "hello world" })
+    n.actions["input.cursorWordRight"]()
+    expect(n.state.cursor).toBe(6)
+  })
+
+  test("cursorWordRight from the middle of a word jumps past the word", () => {
+    const n = input({ cursor: 3, value: "hello world" })
+    n.actions["input.cursorWordRight"]()
+    expect(n.state.cursor).toBe(6)
+  })
+
+  test("cursorWordRight from a gap lands on the next word start", () => {
+    const n = input({ cursor: 2, value: "hello  world" })
+    n.actions["input.cursorWordRight"]()
+    expect(n.state.cursor).toBe(7)
+  })
+
+  test("cursorWordRight at the end is a no-op", () => {
+    const n = input({ cursor: 11, value: "hello world" })
+    n.actions["input.cursorWordRight"]()
+    expect(n.state.cursor).toBe(11)
+  })
+
+  test("word moves work across a newline", () => {
+    const n = input({ cursor: 0, value: "hello\nworld" })
+    n.actions["input.cursorWordRight"]()
+    expect(n.state.cursor).toBe(6)
+    n.actions["input.cursorWordLeft"]()
+    expect(n.state.cursor).toBe(0)
   })
 })
 
