@@ -142,6 +142,22 @@ Use `/config` to edit configuration, `/resources` to choose which resources are
 enabled, and `/reload` to reload plugins and resources without restarting zaly.
 These formats are still evolving during alpha.
 
+### Context window
+
+By default, masking and compaction fire relative to the model's full declared
+context. Models degrade well before their maximum, so you can keep sessions in
+a "good" zone by setting a smaller reference window:
+
+```json
+{
+  "contextWindow": 128000
+}
+```
+
+When set, the status line's `ctx` percentage and the masking/compaction
+pressure are computed against this window instead of the model's context.
+Unset (or `0`) to fall back to the model's full context.
+
 ## 🖥️ Terminal notes
 
 - **Fullscreen mode** provides a focused app-like interface. **Scrollback mode**
