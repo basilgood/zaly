@@ -30,6 +30,7 @@ export async function loadAgent(app: App): Promise<Agent> {
     },
     bash: settings.system.bash,
     compaction: () => app.$.compaction,
+    contextLimit: settings.contextWindow,
     cwd,
     loadModel: async (id) => {
       // Load the model using the proper model registry and auth manager
@@ -117,4 +118,5 @@ export function attachState(agent: Agent, state: AppState): void {
     })
   agent.ctx.on("session", () => (state.usage = agent.usage))
   state.usage = agent.usage
+  state.contextLimit = agent.pressure.limit
 }

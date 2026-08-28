@@ -48,7 +48,7 @@ export const statusline = widget((props: AppState) =>
         const u = props.usage
 
         if (u && u.contextSize > 0) {
-          const limit = props.model?.spec.contextSize ?? 0
+          const limit = props.contextLimit ?? props.model?.spec.contextSize ?? 0
           components.push(() => {
             let pctStyle: ThemeKey = "success"
             const pct = limit > 0 ? Math.round((u.contextSize / limit) * 100) : 0

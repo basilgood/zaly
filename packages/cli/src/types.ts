@@ -53,6 +53,10 @@ export type AppState = {
   status: AgentStatus | "error" | "loading" | "ready"
   /** The current token usage statistics. */
   usage?: TokenUsage
+  /** The context window (tokens) used as the reference for the ctx
+   *  percentage — the agent's `pressure.limit`, which may be a
+   *  configured `contextWindow` rather than the model's full context. */
+  contextLimit?: number
   /** The current reasoning effort. */
   reasoning?: ReasoningEffort
   /** The current scroll position of the render stream */
