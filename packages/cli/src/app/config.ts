@@ -199,6 +199,19 @@ export async function editConfig(app: App, opts: { scope?: "user" | "project" } 
       prop: ["reasoning"],
     }),
     option({
+      desc: "Context window (tokens) used as the reference for masking and compaction",
+      name: "Context Window",
+      prop: ["contextWindow"],
+      async toggle() {
+        const value = await app.prompt.open({
+          clearInput: true,
+          title: "Context Window (tokens)",
+        })
+        const n = Number(value)
+        if (Number.isFinite(n) && n >= 0) this.value = n
+      },
+    }),
+    option({
       desc: "Default model to use for the agent",
       name: "Model",
       prop: ["model"],

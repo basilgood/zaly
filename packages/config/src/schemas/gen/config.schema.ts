@@ -23,6 +23,10 @@ export const ConfigSchema = {
                         ],
                         description: "Default reasoning effort *"
                     },
+                    contextWindow: {
+                        type: "number",
+                        description: "Context window (tokens) used as the reference for masking and\ncompaction pressure. When unset, the model's full declared context\nis used. Set it to keep the session inside a \"good\" window \u2014 models\ndegrade well before their max, so firing compaction relative to a\nsmaller window avoids the hallucination zone."
+                    },
                     tools: {
                         type: "array",
                         items: {

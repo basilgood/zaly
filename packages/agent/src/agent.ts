@@ -249,7 +249,12 @@ export class Agent extends Emitter<AgentEvents> {
 
   get pressure(): ContextPressure {
     const used = this.contextSize
-    const limit = this.model?.spec.contextSize ?? 0
+    // Prefer the configured context window (the "good" zone) over the
+    // model's full context — models degrade well before their max, so
+    // masking/compaction should fire relative to the window, not the
+    // ceiling. `contextLimit` is the window; fall back to the model's
+    // declared context when unset.
+    const limit = this.#opts.contextLimit ?? this.model?.spec.contextSize ?? 0
     const ratio = limit > 0 ? used / limit : 0
     const level = PRESSURE_LEVELS.findLast((t) => ratio >= t) ?? 0
     return { level, limit, ratio, used }

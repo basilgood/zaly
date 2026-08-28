@@ -20,6 +20,12 @@ export type ResolvedConfig = {
   model?: string
   /** Default reasoning effort **/
   reasoning: ReasoningEffort
+  /** Context window (tokens) used as the reference for masking and
+   *  compaction pressure. When unset, the model's full declared context
+   *  is used. Set it to keep the session inside a "good" window — models
+   *  degrade well before their max, so firing compaction relative to a
+   *  smaller window avoids the hallucination zone. */
+  contextWindow?: number
   tools: string[]
   ui: {
     /** scrollback: preserves terminal scrollback/search; footer scrolls away with mouse wheel because the terminal is scrolling
