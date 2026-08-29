@@ -550,6 +550,18 @@ export class Agent extends Emitter<AgentEvents> {
       return { kind: "context-overflow", ...result }
 
     const calls = await this.#parseToolCalls(collected)
+
+    // A degenerate turn — the model streamed no text and made no tool
+    // calls (e.g. a `stop` with zero output tokens). Committing it would
+    // persist an empty assistant message that some OpenAI-compatible
+    // endpoints reject as `content: null` on the next request (notably
+    // after compaction, when it lands in the preserved tail). Drop it
+    // from the session so it never reaches the wire.
+    if (calls.length === 0 && isEmptyAssistant(collected)) {
+      this.#opts.logger?.warn("Dropping empty assistant turn (no text, no tool calls)")
+      return { kind: "natural", ...result }
+    }
+
     await this.session.add(collected)
 
     if (calls.length === 0) return { kind: "natural", ...result }
@@ -839,4 +851,12 @@ export class Agent extends Emitter<AgentEvents> {
     this.#status = status
     void this.emit("status", { status })
   }
+}
+
+/** True when an assistant message carries no text and no tool calls —
+ *  a degenerate turn that would serialize to empty/null content on the
+ *  wire. Used to avoid persisting such turns (see `#step`). */
+function isEmptyAssistant(message: Message<"assistant">): boolean {
+  if (typeof message.content === "string") return message.content.trim() === ""
+  return message.content.every((p) => p.type !== "text" && p.type !== "tool-call")
 }

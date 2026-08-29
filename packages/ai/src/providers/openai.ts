@@ -443,7 +443,14 @@ async function toOpenAIMessage(msg: Message): Promise<OpenAIMessage> {
       return { content: parts, role: "user" }
     }
     case "assistant": {
-      if (typeof msg.content === "string") return { content: msg.content, role: "assistant" }
+      if (typeof msg.content === "string") {
+        // Empty-string content is rejected as `content: null` by some
+        // OpenAI-compatible endpoints. Omit the field (Chat Completions
+        // accepts an assistant message with only tool_calls) rather than
+        // send an empty string.
+        if (msg.content === "") return { role: "assistant" }
+        return { content: msg.content, role: "assistant" }
+      }
       // Flatten the ordered part array: concatenate all text, bucket
       // all tool-call parts. Reasoning parts are dropped — Chat
       // Completions has no way to send reasoning back to the model,
