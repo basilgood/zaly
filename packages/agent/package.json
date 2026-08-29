@@ -59,8 +59,10 @@
   },
   "devDependencies": {
     "@types/shell-quote": "^1.7.5",
+    "defuddle": "^0.19.2",
     "ignore": "^7.0.5",
     "jsonpath-plus": "^10.4.0",
+    "linkedom": "^0.18.13",
     "shell-quote": "^1.9.0"
   },
   "peerDependencies": {
@@ -71,8 +73,43 @@
     "node": ">=22.11"
   },
   "inlinedDependencies": {
+    "@mixmark-io/domino": "2.2.0",
+    "@xmldom/xmldom": "0.9.12",
+    "boolbase": "2.0.0",
+    "css-select": "7.0.0",
+    "css-what": "8.0.0",
+    "cssom": "0.5.0",
+    "defuddle": "0.19.3",
+    "dom-serializer": [
+      "2.0.0",
+      "3.1.1"
+    ],
+    "domelementtype": [
+      "2.3.0",
+      "3.0.0"
+    ],
+    "domhandler": [
+      "5.0.3",
+      "6.0.1"
+    ],
+    "domutils": [
+      "3.2.2",
+      "4.0.2"
+    ],
+    "entities": [
+      "4.5.0",
+      "7.0.1",
+      "8.0.0"
+    ],
+    "htmlparser2": "10.1.0",
     "ignore": "7.0.5",
     "jsonpath-plus": "10.4.0",
-    "shell-quote": "1.9.0"
+    "linkedom": "0.18.13",
+    "mathml-to-latex": "1.8.0",
+    "nth-check": "3.0.1",
+    "shell-quote": "1.9.0",
+    "temml": "0.13.5",
+    "turndown": "7.2.4",
+    "uhyphen": "0.2.0"
   }
 }

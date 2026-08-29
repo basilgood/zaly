@@ -23,8 +23,8 @@ const DEFAULT_MAX_BODY_BYTES = 256 * 1024 // 256 KB — generous for APIs, caps 
 // oxlint-disable-next-line sort-keys
 export const fetchTool = defineTool({
   desc:
-    `Fetch a URL and return the response. JSON responses are parsed; use \`jsonpath\` (e.g. \`$.items[*].name\`) to extract a subset and minimise tokens.` +
-    `Image & PDF are returned as attachments. Best for APIs — for web pages, use the browser tool.`,
+    `Fetch a URL and return the response. HTML pages are auto-extracted to readable article markdown (title, author, body — nav/ads/scripts stripped) to keep tokens low; pass \`mode: "raw"\` to get the body as-is. JSON responses are parsed; use \`jsonpath\` (e.g. \`$.items[*].name\`) to extract a subset and minimise tokens.` +
+    `Image & PDF are returned as attachments. Best for APIs and web pages.`,
   name: "fetch",
   parallel: true,
 
@@ -65,6 +65,33 @@ export const fetchTool = defineTool({
         description:
           "JSONPath expression applied to a JSON response, e.g. " +
           "`$.items[*].name`. Returns the matched values as an array.",
+      })
+    ),
+    mode: Type.Optional(
+      Type.Union([Type.Literal("text"), Type.Literal("raw")], {
+        default: "text",
+        description:
+          "`text` (default) extracts the readable article from an HTML " +
+          "page (via Defuddle) and returns it as markdown — title, author, " +
+          "and body, with nav/ads/scripts stripped. This keeps tokens low " +
+          "on web pages. `raw` returns the body as-is (e.g. to inspect " +
+          "markup or when the response isn't HTML).",
+      })
+    ),
+    match: Type.Optional(
+      Type.String({
+        description:
+          "Regex; when set, only lines matching it are returned. Use to " +
+          "filter a large body down to the relevant lines (e.g. `price|per " +
+          "1,000`) before it reaches context. Combined with `head` to cap " +
+          "the number of matching lines.",
+      })
+    ),
+    head: Type.Optional(
+      Type.Integer({
+        default: 50,
+        description:
+          "Max matching lines to return when `match` is set (default 50).",
       })
     ),
   }),
@@ -136,7 +163,63 @@ export const fetchTool = defineTool({
 
     // Stringify the body for display. JSON pretty-prints; raw text is
     // used as-is.
-    const bodyText = typeof body === "string" ? body : JSON.stringify(body, undefined, 2)
+    let bodyText = typeof body === "string" ? body : JSON.stringify(body, undefined, 2)
+
+    // `mode: "text"` (default) — extract the readable article from an HTML
+    // page via Defuddle (real article extraction, not regex stripping).
+    // Returns markdown with title/author/body, nav/ads/scripts stripped.
+    // Lazy-import so the heavy DOM/extraction deps are only paid for when
+    // actually used. Only applied to non-JSON text bodies.
+    if (args.mode !== "raw" && !isJson) {
+      const isHtml =
+        contentType.includes("text/html") ||
+        contentType.includes("application/xhtml+xml") ||
+        /<html[\s>]/i.test(bodyText.slice(0, 1024))
+      if (isHtml) {
+        try {
+          const { Defuddle } = await import("defuddle/node")
+          const { parseHTML } = await import("linkedom")
+          const { document } = parseHTML(bodyText)
+          const extracted = await Defuddle(document, url.toString(), {
+            markdown: true,
+          })
+          const content = extracted.contentMarkdown ?? extracted.content
+          if (content && content.trim() !== "") {
+            const header = [
+              extracted.title ? `# ${extracted.title}` : "",
+              extracted.author ? `**Author:** ${extracted.author}` : "",
+              extracted.published ? `**Published:** ${extracted.published}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n")
+            bodyText = header ? `${header}\n\n${content}` : content
+          }
+        } catch {
+          // Defuddle failed (malformed HTML, etc.) — fall through to the
+          // raw body rather than erroring the whole fetch.
+        }
+      }
+    }
+
+    // `match` — keep only lines matching the regex, capped by `head`.
+    // Filters at the tool boundary so the model never sees the full body.
+    if (args.match !== undefined) {
+      let re: RegExp
+      try {
+        re = new RegExp(args.match)
+      } catch {
+        return [
+          { data: meta, tag: "fetch", type: "meta" },
+          { text: `Invalid match regex: ${args.match}`, type: "text" },
+        ]
+      }
+      const lines = bodyText.split("\n").filter((l) => re.test(l))
+      const limit = args.head ?? 50
+      bodyText =
+        lines.length > limit
+          ? `${lines.length} matching line(s), showing first ${limit}\n${lines.slice(0, limit).join("\n")}`
+          : lines.join("\n")
+    }
 
     // Cap the body before it reaches the model. Total bytes received is
     // surfaced via the meta so the model can decide whether to refetch
@@ -149,9 +232,9 @@ export const fetchTool = defineTool({
       meta.truncated = {
         bytes: totalBytes,
         hint:
-          args.jsonpath === undefined
-            ? "body exceeded limit; pass `jsonpath` to filter, or use the browser tool for HTML."
-            : "filtered body still exceeded limit; tighten the JSONPath expression.",
+          args.jsonpath === undefined && args.match === undefined
+            ? "body exceeded limit; pass `jsonpath`, `match`, or `mode: \"text\"` to filter, or use the browser tool for HTML."
+            : "filtered body still exceeded limit; tighten the filter expression.",
         limit: DEFAULT_MAX_BODY_BYTES,
       }
     }
