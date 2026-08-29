@@ -168,7 +168,12 @@ export const subagentTool = defineTool({
         const answer = finalText()
         if (answer !== "") parts.push({ text: answer, type: "text" })
       }
-      return { content: parts, isError: false, running }
+      // Carry `sessionPath` in the wire-invisible `meta` sidecar so it
+      // survives masking (which stubs `content` but preserves `meta`).
+      // The `<subagent>` MetaPart in `content` is the model-facing
+      // pointer; `meta` keeps the transcript reachable even after the
+      // answer is masked away.
+      return { content: parts, isError: false, meta: { sessionPath }, running }
     }
 
     return {
@@ -196,6 +201,7 @@ export const subagentTool = defineTool({
               { text: `subagent failed: ${message}`, type: "text" },
             ],
             isError: true,
+            meta: { sessionPath },
           }
         }
       ),
