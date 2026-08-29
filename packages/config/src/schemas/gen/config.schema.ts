@@ -6,10 +6,6 @@ export const ConfigSchema = {
             "TypiaConfig.o1": {
                 type: "object",
                 properties: {
-                    model: {
-                        type: "string",
-                        description: "Defaul model to use for the agent *"
-                    },
                     reasoning: {
                         type: "string",
                         "enum": [
@@ -22,6 +18,10 @@ export const ConfigSchema = {
                             "max"
                         ],
                         description: "Default reasoning effort *"
+                    },
+                    model: {
+                        type: "string",
+                        description: "Defaul model to use for the agent *"
                     },
                     contextWindow: {
                         type: "number",

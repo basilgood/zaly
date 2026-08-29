@@ -2,10 +2,6 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "model": {
-      "type": "string",
-      "description": "Defaul model to use for the agent *"
-    },
     "reasoning": {
       "type": "string",
       "enum": [
@@ -18,6 +14,10 @@
         "max"
       ],
       "description": "Default reasoning effort *"
+    },
+    "model": {
+      "type": "string",
+      "description": "Defaul model to use for the agent *"
     },
     "contextWindow": {
       "type": "number",
