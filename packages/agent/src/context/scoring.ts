@@ -213,6 +213,31 @@ const fileScore: ToolRule<
   },
 }
 
+// Subagent results are one-shot — re-calling spawns a *new* agent, so
+// the generic "Re-call to refresh" stub would be a lie. Keep the
+// `sessionPath` in the masked content so the model can still `read` the
+// full transcript after the answer is masked away.
+const subagentScore: ToolRule = {
+  gamma: 0.5,
+  halfLife: 40,
+  mask: (part) => {
+    if (part.part.type === "tool-call") return part.part
+    const path = (part.part.meta as { sessionPath?: string } | undefined)?.sessionPath
+    return {
+      ...part.part,
+      content: [
+        {
+          content: path
+            ? `Subagent result masked. Full transcript: ${path}`
+            : "Subagent result masked.",
+          tag: "masked",
+          type: "meta",
+        },
+      ],
+    }
+  },
+}
+
 export type ContextScoringOptions = {
   tools?: Record<AnyTool | "*", ToolRule>
   parts?: MaskRule[]
@@ -247,6 +272,7 @@ const defaults: ContextScoringOptions = {
     read: fileScore,
     edit: fileScore,
     write: fileScore,
+    subagent: subagentScore,
 
     "*": { gamma: 0.5, halfLife: 40 },
   } as Record<AnyTool | "*", ToolRule>,
