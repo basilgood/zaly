@@ -1,5 +1,63 @@
 # Changelog
 
+## [0.0.5](https://github.com/basilgood/zaly/compare/shared-v0.0.4...shared-v0.0.5) (2026-08-30)
+
+
+### 🚀 Enhancements
+
+* **ai/models:** model/provider overrides rework + hook up with config ([9ea2ae4](https://github.com/basilgood/zaly/commit/9ea2ae4069925bc3b22586f2dabf1ae3d1c6c831))
+* **ai:** big rework of oauth/authentication/model catalog ([a4b8cbc](https://github.com/basilgood/zaly/commit/a4b8cbc35158237e3a3e32ad0c583bb2d6b4b2e1))
+* **cli:** added `/session` with session info ([8189809](https://github.com/basilgood/zaly/commit/81898097cd2e729f78dfe3cb1c06143c0d67e7fc))
+* **cli:** more lenient error handling in config files ([47cea3c](https://github.com/basilgood/zaly/commit/47cea3c2317eab04ea608cb822b9ab2d7b277816))
+* **shared/args:** added support for positional args ([f700065](https://github.com/basilgood/zaly/commit/f700065284d98e8c6eb8750cfdee1a88e55164aa))
+* **shared/args:** added support for required options ([a84c7a3](https://github.com/basilgood/zaly/commit/a84c7a3504fffc52e2a756d8648457f8f16bbdb0))
+* **shared/glob:** added globber runtime ([ab4a3bf](https://github.com/basilgood/zaly/commit/ab4a3bf390abfeae9a749ff04acf8b8a998587cf))
+* **shared/json:** added JsonFile to easily manage json files (config/state/etc) ([00649a8](https://github.com/basilgood/zaly/commit/00649a8eced29074182124a1957ae0d12db97085))
+* **shared/process:** proper support for executing bash commands with bash path resolving ([1e6c002](https://github.com/basilgood/zaly/commit/1e6c002f0948df470ee03a9336f995256bcbc5c1))
+* **shared/prop:** added propSet/propGet to set/get object values based on a key path ([4bc09b4](https://github.com/basilgood/zaly/commit/4bc09b4a180173e519561bd01671ed61a0db7eb5))
+* **shared/template:** added opts.helpers ([91eb019](https://github.com/basilgood/zaly/commit/91eb0190ccf4814a382a205a0cf9bbb0496a142a))
+* **shared/template:** custom formatters, compiled expressions, white space control, env(), $(), json() ([c47ac62](https://github.com/basilgood/zaly/commit/c47ac6216dabb1428581f7cc6ec8d4ebc7ee547a))
+* **shared/types:** moved DeepPartial/Simplify to shared/types ([7e9317c](https://github.com/basilgood/zaly/commit/7e9317cd8021f40ade0f508f9b7b1263e37b574e))
+* **shared/utils:** MaybeGetter and toValue ([b991ec3](https://github.com/basilgood/zaly/commit/b991ec3aa2ab2fc86c97cc8ab1c8577e97e8f855))
+* **shared:** added `template.ts` for template interpolation with js expressions ([5765fee](https://github.com/basilgood/zaly/commit/5765feed68aaf9be158a8f9aed33bc7f13221fb5))
+* **tui/process:** allow disabling stdout/stderr (fix for wl-copy) ([0109f2b](https://github.com/basilgood/zaly/commit/0109f2bd9deeb1a8da9c37afa9dc66b899854ade))
+* **tui/prompt:** generic prompt service that integrates with the composer ([189e125](https://github.com/basilgood/zaly/commit/189e125388bedae2d549c8c0d8b2a503e9039b00))
+
+
+### 🩹 Fixes
+
+* **ai:** typed catalog reads from the models cache ([d8ca0e4](https://github.com/basilgood/zaly/commit/d8ca0e4e3950557d521ea038e28453145e30eb97))
+* **shared/ansi:** handle KGP diacritic clusters for Bun in sliceAnsi and stringWidth + replace by space in stripAnsi ([74bf8a3](https://github.com/basilgood/zaly/commit/74bf8a3df7136dcfb3afe390a759461d5d465b8e))
+* **shared/images:** sharp types ([68387b0](https://github.com/basilgood/zaly/commit/68387b0a5eb82dbcc7d12914e6c008a54436538b))
+* **shared/types:** dont expand strings in Simplify ([ece712f](https://github.com/basilgood/zaly/commit/ece712fd2c436a2546407858f60209cc5d15eacb))
+* **shared/utils:** fixed clamp() with optional max ([06b2d79](https://github.com/basilgood/zaly/commit/06b2d79eecbbd34e1099594dc3da702806837750))
+
+
+### 🎨 Styles
+
+* oxfmt ([52369c7](https://github.com/basilgood/zaly/commit/52369c7d22a000c16fb4953a9c4744c55b34652d))
+* oxfmt ([be0afec](https://github.com/basilgood/zaly/commit/be0afecf4459405fdef168c3f72d322c74fe5c48))
+* **shared/glob:** doc strings for glob options ([b76bfa0](https://github.com/basilgood/zaly/commit/b76bfa0684aa42f56c2529654986dbf4932be8bb))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+
+
+### ✅ Tests
+
+* fix spawnCmd tests ([a497173](https://github.com/basilgood/zaly/commit/a49717389fc4ca58b2225d759405a148b482cf00))
+* **shared:** more tests ([cc53a54](https://github.com/basilgood/zaly/commit/cc53a543e424f8d30d158aea5955fc3dc408602d))
+* **shared:** more tests for shared ([2005574](https://github.com/basilgood/zaly/commit/200557469e3a1de1034776430c6433ae0d2f5709))
+* **tui:** more tui tests ([69c3d53](https://github.com/basilgood/zaly/commit/69c3d531a5e6ee29c4b35c1824a798c669b1c8ef))
+
+
+### 📦 Build
+
+* fix build ([995e599](https://github.com/basilgood/zaly/commit/995e599eb4a46f3a55ece54dd0ea1f8e256f29cd))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+
 ## [0.0.4](https://github.com/folke/zaly/compare/shared-v0.0.3...shared-v0.0.4) (2026-07-10)
 
 
