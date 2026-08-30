@@ -63,6 +63,28 @@ describe("truncate", () => {
     const text = "one\ntwo\nthree"
     expect(truncate(text)).toEqual(truncate(Buffer.from(text)))
   })
+
+  test("max_lines cap coexists with max_chars — whichever binds first", () => {
+    // 40 lines × 500 chars = 20_000 chars. A 2000-char budget binds before
+    // the 40-line cap can; head+tail split keeps ~half the budget each end.
+    const lines = Array.from({ length: 40 }, () => "x".repeat(499))
+    const r = truncate(lines.join("\n"), { maxChars: 2000, maxLines: 40 })
+    expect(r.truncated).toBe(true)
+    expect(r.truncatedChars).toBe(true)
+    expect(r.text.length).toBeLessThan(2200) // marker adds a little
+    expect(r.text).toContain("truncated")
+  })
+
+  test("few huge lines under maxLines but over maxChars keep the head", () => {
+    // 4 lines × 1000 chars: under a lines cap of 40, over a 2000-char budget.
+    // Head keeps its share of the budget; the rest is elided.
+    const lines = Array.from({ length: 4 }, () => "y".repeat(999))
+    const r = truncate(lines.join("\n"), { maxChars: 2000, maxLines: 40 })
+    expect(r.truncated).toBe(true)
+    expect(r.truncatedChars).toBe(true)
+    expect(r.text.startsWith("yyy")).toBe(true)
+    expect(r.text).toContain("truncated 3 lines")
+  })
 })
 
 describe("addUsage", () => {

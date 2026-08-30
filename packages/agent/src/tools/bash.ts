@@ -78,6 +78,19 @@ export const bashTool = defineTool({
         minimum: 10,
       })
     ),
+    max_tokens: Type.Optional(
+      Type.Integer({
+        default: 4000,
+        description:
+          "Cap on estimated tokens kept inline (~4 chars each), applied " +
+          "alongside `max_lines` (whichever binds first). When output " +
+          "exceeds it, the middle is elided: first half of the budget " +
+          "from the head, second half from the tail. Raise for commands " +
+          "where the middle matters; the full log is still written to " +
+          "disk and surfaced as `truncated.fullOutputPath`.",
+        minimum: 500,
+      })
+    ),
     timeout: Type.Optional(
       Type.Integer({
         default: DEFAULT_TIMEOUT_MS,
@@ -140,7 +153,15 @@ export const bashTool = defineTool({
       // heartbeat flag this task with `*new*` without advancing the
       // cursor (which would consume the bytes for any later poll).
       hasNew: () => proc.stdout.length > cursor.combined,
-      poll: () => snapshot({ cursor, logPath, maxLines: args.max_lines ?? 200, proc, startedAt }),
+      poll: () =>
+        snapshot({
+          cursor,
+          logPath,
+          maxChars: args.max_tokens ? args.max_tokens * 4 : undefined,
+          maxLines: args.max_lines ?? 200,
+          proc,
+          startedAt,
+        }),
     }
   },
 })
@@ -156,6 +177,9 @@ interface SnapshotOpts {
   logPath: () => string
   cursor: { combined: number }
   maxLines: number
+  /** Char budget derived from `max_tokens` (×4), passed through to
+   *  `truncate` alongside `maxLines` — whichever binds first. */
+  maxChars?: number
 }
 
 /** Build the current `ToolResult` snapshot for a running or exited bash
@@ -167,6 +191,7 @@ function snapshot({
   logPath,
   cursor,
   maxLines,
+  maxChars,
 }: SnapshotOpts): ToolResult & { running: boolean } {
   // Slice incremental combined output since the cursor and advance.
   let text = proc.stdout.slice(cursor.combined)
@@ -186,7 +211,7 @@ function snapshot({
     if (proc.killReason) meta.killReason = proc.killReason
   }
 
-  const summary = truncate(text, { maxLines, strategy: "head+tail" })
+  const summary = truncate(text, { maxChars, maxLines, strategy: "head+tail" })
   if (summary.truncated) {
     const log = logPath()
     meta.truncated = {
