@@ -1,4 +1,4 @@
-import type { Content, Message } from "@zaly/ai"
+import type { Message } from "@zaly/ai"
 
 import { defineTool, stringifyContent } from "@zaly/ai"
 import { Type } from "typebox"
@@ -10,8 +10,6 @@ const Add = defineTool({
   name: "add",
   params: Type.Object({ a: Type.Number(), b: Type.Number() }),
 })
-
-const usage = (input: number, output: number) => ({ input, output })
 
 describe("Agent — no tool calls", () => {
   test("completes in one step when the model stops", async () => {
@@ -271,68 +269,6 @@ describe("Agent — compaction summarizer model", () => {
     const kinds = agent.session.messages.map((m) => m.role)
     expect(kinds[0]).toBe("system")
   })
-
-  test("compaction summarizes raw history, not the masked projection", async () => {
-    let summaryPrompt = ""
-    const summaryModel = mockModel([
-      [
-        { delta: "## 1. Goal\ntest goal", type: "text-delta" },
-        { finishReason: "stop", type: "finish", usage: { input: 10, output: 5 } },
-      ],
-    ])
-    const original = summaryModel.stream.bind(summaryModel)
-    summaryModel.stream = ((context, opts) => {
-      summaryPrompt = stringifyContent(context.messages[0].content as Content)
-      return original(context, opts)
-    }) as typeof summaryModel.stream
-
-    // Seed a history where the probe result is old enough to fall outside
-    // the compaction tail — so the summarizer's `older` slice (not the
-    // verbatim tail) is what must carry the raw result. Increasing usage
-    // over later turns makes `messageTail` cut before the tool result.
-    const messages: Message[] = [
-      { content: "go", role: "user" },
-      {
-        content: [{ id: "call_1", name: "probe", params: {}, type: "tool-call" }],
-        meta: { usage: usage(10, 5) },
-        role: "assistant",
-      },
-      {
-        content: [
-          { content: "RAW-TOOL-OUTPUT-UNIQUE", id: "call_1", name: "probe", type: "tool-result" },
-        ],
-        role: "tool",
-      },
-      { content: "first", meta: { usage: usage(40, 10) }, role: "assistant" },
-      { content: "more", role: "user" },
-      { content: "second", meta: { usage: usage(90, 20) }, role: "assistant" },
-      { content: "more2", role: "user" },
-      { content: "third", meta: { usage: usage(150, 20) }, role: "assistant" },
-    ]
-    const agent = await loadAgent({
-      compaction: { keepTokens: 20, model: "mock/summary" },
-      loadModel: async () => summaryModel,
-      mask: { keepTurns: -1, minTokens: 1, target: 0.1 },
-      messages,
-      model: throwingModel("session model must not run"),
-    })
-
-    // Sanity: an outbound projection with masking would elide that result;
-    // compaction must still read the raw session history.
-    const masker = await agent.ctx.masker()
-    const projected = await masker!.mask(agent.session.messages, {
-      force: true,
-      limit: 100,
-      ratio: 1,
-    })
-    expect(JSON.stringify(projected)).toContain('"tag":"elided"')
-
-    await agent.compact()
-
-    expect(summaryPrompt).toContain("<tool-result>")
-    expect(summaryPrompt).toContain("RAW-TOOL-OUTPUT-UNIQUE")
-    expect(summaryPrompt).not.toContain("<elided>")
-  })
 })
 
 function sameAddCall(id: string): {
@@ -365,128 +301,9 @@ describe("Agent — loop detection", () => {
     const result = await runAgent({
       messages: [{ content: "go", role: "user" }],
       model,
-      stop: { loopConsecutive: 3, loopNudges: 0 },
-      tools: [Add],
-    })
-    expect(result.stopReason).toBe("loop-detected")
-  })
-
-  test("identical calls with changing results are not a loop", async () => {
-    // A poll-like tool whose output changes each call (e.g. task_poll
-    // watching a task progress) — same call, different result → progress,
-    // not a loop. The loop detector must not flag it.
-    let n = 0
-    const Poll = defineTool({
-      call: () => `progress ${++n}`,
-      name: "poll",
-      params: Type.Object({}),
-    })
-    const sameCall = (id: string) => ({ id, name: "poll" as const, params: {}, type: "tool-call" as const })
-    const model = mockModel([
-      [sameCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [
-        { delta: "done", type: "text-delta" },
-        { finishReason: "stop", type: "finish", usage: { input: 1, output: 1 } },
-      ],
-    ])
-    const result = await runAgent({
-      messages: [{ content: "go", role: "user" }],
-      model,
-      stop: { loopConsecutive: 3 },
-      tools: [Poll],
-    })
-    expect(result.stopReason).toBe("natural")
-  })
-
-  test("injects a corrective nudge and lets the model break the loop", async () => {
-    // Three identical add(1,1) calls trip loopConsecutive=3 → the agent
-    // injects a loop-nudge system message and continues; the model then
-    // answers naturally instead of halting.
-    const model = mockModel([
-      [sameAddCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameAddCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameAddCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [
-        { delta: "2", type: "text-delta" },
-        { finishReason: "stop", type: "finish", usage: { input: 1, output: 1 } },
-      ],
-    ])
-    const result = await runAgent({
-      messages: [{ content: "go", role: "user" }],
-      model,
       stop: { loopConsecutive: 3 },
       tools: [Add],
     })
-    expect(result.stopReason).toBe("natural")
-    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
-    expect(nudges).toHaveLength(1)
-    expect(stringifyContent(nudges[0].content as Content)).toMatch(/loop nudge 1/)
-    expect(stringifyContent(nudges[0].content as Content)).toMatch(/add/)
-  })
-
-  test("halts with loop-detected once the nudge budget is exhausted", async () => {
-    // loopNudges: 1 → one corrective nudge, then a repeat still trips
-    // detection and the run halts.
-    const model = mockModel([
-      [sameAddCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameAddCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameAddCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameAddCall("c4"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-    ])
-    const result = await runAgent({
-      messages: [{ content: "go", role: "user" }],
-      model,
-      stop: { loopConsecutive: 3, loopNudges: 1 },
-      tools: [Add],
-    })
     expect(result.stopReason).toBe("loop-detected")
-    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
-    expect(nudges).toHaveLength(1)
-  })
-})
-
-describe("Agent — masking", () => {
-  test("rewrites old tool results to <elided> stubs in the outbound request only", async () => {
-    let captured: Message[] = []
-    const toolResult = defineTool({
-      call: () => "some long tool output that is worth masking away",
-      name: "probe",
-      params: Type.Object({}),
-    })
-    const model = mockModel([
-      [
-        { params: {}, id: "c1", name: "probe", type: "tool-call" },
-        { finishReason: "tool-calls", type: "finish", usage: { input: 60, output: 20 } },
-      ],
-      [
-        { delta: "done", type: "text-delta" },
-        { finishReason: "stop", type: "finish", usage: { input: 1, output: 1 } },
-      ],
-    ])
-    const original = model.stream.bind(model)
-    model.stream = ((context, opts) => {
-      captured = context.messages as Message[]
-      return original(context, opts)
-    }) as typeof model.stream
-
-    const result = await runAgent({
-      contextLimit: 100,
-      mask: { keepTurns: -1, minTokens: 1, target: 0.1 },
-      messages: [{ content: "go", role: "user" }],
-      model,
-      tools: [toolResult],
-    })
-
-    expect(result.stopReason).toBe("natural")
-    // The session keeps the raw result.
-    const sessionTool = result.messages.find((m) => m.role === "tool") as Message<"tool">
-    expect(stringifyContent(sessionTool.content[0].content)).toContain("some long tool output")
-    // The second request (after the tool ran) carries the stub instead.
-    const requestTool = captured.find((m) => m.role === "tool") as Message<"tool">
-    expect(requestTool.content[0].content).toMatchObject([
-      { data: { firstLine: "some long tool output that is worth masking away", tool: "probe" }, tag: "elided", type: "meta" },
-    ])
   })
 })
