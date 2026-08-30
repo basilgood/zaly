@@ -3,7 +3,7 @@
  *
  *     bun bench/models.ts
  *
- * Compares loading `assets/models.json` through native JSON module import
+ * Compares loading the cached catalog through native JSON module import
  * against reading the file and parsing it manually. The import benchmark uses
  * a unique URL query per iteration so the module cache does not turn the
  * benchmark into a cached Promise lookup.
@@ -14,8 +14,9 @@ import { copyFile, readFile, writeFile } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
 import { promisify } from "node:util"
 import { constants, gzip as gzipCb, gunzip as gunzipCb } from "node:zlib"
+import { modelsCachePath } from "../src/models/cache.ts"
 
-const modelUrl = new URL("../assets/models.json", import.meta.url)
+const modelUrl = pathToFileURL(modelsCachePath())
 
 const gzip = promisify(gzipCb)
 const gunzip = promisify(gunzipCb)

@@ -30,6 +30,7 @@ export default defineConfig({
       test: {
         name: `@zaly/${name}`,
         root: `${pkgDir}/${name}`,
+        setupFiles: name === "ai" ? [`${pkgDir}/ai/test/setup.ts`] : [],
       },
     })),
   },

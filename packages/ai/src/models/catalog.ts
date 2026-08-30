@@ -13,8 +13,8 @@ import type {
 import type { ModelFilter } from "./filter.ts"
 
 import { normPath } from "@zaly/shared"
-import { mkdir, writeFile } from "node:fs/promises"
 import { pathToFileURL } from "node:url"
+import { readModelsCache, readStaleModelsCache, writeModelsCache } from "./cache.ts"
 import { filterModels } from "./filter.ts"
 import { builtinOverrides } from "./overrides.ts"
 
@@ -141,25 +141,39 @@ export function parseModelId(id: string): [string, string] {
   return [id.slice(0, idx), id.slice(idx + 1)]
 }
 
-export async function downloadCatalog(dir: string): Promise<ModelCatalog> {
-  dir = normPath(dir)
-  await mkdir(dir, { recursive: true })
+/** Fetch the models.dev catalog and cache it locally. Returns the loaded
+ *  catalog. Throws on network or parse failure — callers decide whether to
+ *  fall back to a stale cache. */
+export async function downloadCatalog(): Promise<ModelCatalog> {
   const res = await fetch(CATALOG_URL)
   if (!res.ok) throw new Error(`Failed to fetch catalog: ${res.status} ${res.statusText}`)
-  const raw = await res.text()
-  const data = JSON.parse(raw)
+  const data = JSON.parse(await res.text())
   if (!isCatalog(data))
     throw new Error(`Invalid catalog format: expected object with "providers" key`)
   const cat = await ModelCatalog.load(data)
-  const entries = Object.entries(cat.$).filter(([pid]) => !!cat.provider(pid))
-  const cleaned = JSON.stringify(Object.fromEntries(entries)) // strip unsupported providers
-  await writeFile(`${dir}/snapshot.json`, raw, "utf8")
-  await writeFile(`${dir}/models.json`, cleaned, "utf8")
+  await writeModelsCache(cat.$)
   return cat
 }
 
-export async function loadCatalog(path?: string): Promise<ModelCatalog> {
-  return (catalog ??= ModelCatalog.load(path))
+/** Load the models.dev catalog, cache-first:
+ *  - a fresh local cache is used as-is (no network),
+ *  - a missing/expired cache triggers a fetch, which is then cached,
+ *  - a failed fetch falls back to the stale cache if one exists.
+ *  Throws only when there is neither a cache nor a successful fetch. */
+export async function loadCatalog(): Promise<ModelCatalog> {
+  return (catalog ??= loadCatalogFresh())
+}
+
+async function loadCatalogFresh(): Promise<ModelCatalog> {
+  const cached = await readModelsCache()
+  if (cached) return ModelCatalog.load(cached)
+  try {
+    return await downloadCatalog()
+  } catch (error) {
+    const stale = await readStaleModelsCache()
+    if (stale) return ModelCatalog.load(stale)
+    throw error
+  }
 }
 
 export class ModelCatalog {
@@ -177,7 +191,8 @@ export class ModelCatalog {
 
   static async load(cat?: string | Catalog): Promise<ModelCatalog> {
     if (cat && typeof cat !== "string") return new ModelCatalog(cat).#load()
-    const url = cat ? pathToFileURL(normPath(cat)).href : "#assets/models.json"
+    if (!cat) throw new Error("ModelCatalog.load requires a catalog object or path")
+    const url = pathToFileURL(normPath(cat)).href
     const m = await import(url, { with: { type: "json" } })
     return new ModelCatalog(m.default as unknown as Catalog).#load()
   }
