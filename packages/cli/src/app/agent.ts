@@ -59,9 +59,18 @@ export async function loadAgent(app: App): Promise<Agent> {
   const prompts = await ctx.prompts()
   const updatePrompt = async () => {
     const model = agent.ctx.model
-    agent.ctx.prompt = (model ? await prompts.render({ cwd: agent.ctx.cwd, model }) : []).map(
-      (p) => p.text
-    )
+    const base = model ? await prompts.render({ cwd: agent.ctx.cwd, model }) : []
+    const sessionPath = session.path
+    agent.ctx.prompt = [
+      ...base.map((p) => p.text),
+      // One-time framing so the model knows its session transcript is the
+      // full, unmasked record while its in-context view may be masked or
+      // compacted for budget. Gives it a concrete recovery path for stubbed
+      // tool results (mirrors the opencode model of reading the transcript).
+      sessionPath
+        ? `Your session transcript (the full, unmasked record of this conversation, including every tool call and result) is at: ${sessionPath}. Your in-context view may be masked/compacted for budget; when you need exact content that was stubbed, read that file.`
+        : "",
+    ].filter(Boolean)
   }
   prompts.onAny(updatePrompt)
   agent.ctx.on("cwd", updatePrompt)
