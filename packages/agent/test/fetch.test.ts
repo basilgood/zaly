@@ -1,6 +1,7 @@
 import type { MetaPart, TextPart, ToolContext } from "@zaly/ai"
 
-import { createServer, type Server } from "node:http"
+import { createServer } from "node:http"
+import type { Server } from "node:http"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
 import { fetchTool } from "../src/tools/fetch.ts"
 
