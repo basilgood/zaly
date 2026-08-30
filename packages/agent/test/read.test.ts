@@ -239,7 +239,7 @@ describe("trackFile / assertFresh", () => {
       isMasked: (id: string) => id === "m1",
       messages: [withReadOf(path, mtime)],
     }
-    expect(() => assertFresh(path, ctx)).toThrow(/read this file before/i)
+    expect(() => assertFresh(path, ctx)).toThrow(/removed from context/i)
   })
 
   test("assertContentFresh still counts a masked read — write content rides in params, only the mtime receipt matters", () => {

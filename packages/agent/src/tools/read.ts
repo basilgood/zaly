@@ -248,14 +248,18 @@ export function checkFresh(
   for (const { m, $p, p } of extractToolResults<FileMeta>(messages)) {
     const id = m.id
     if (!id || !isFileMeta(p.meta)) continue
-    // Masking hides content but doesn't invalidate the mtime receipt —
-    // metadata survives masking (fileScore.mask keeps the part shape),
-    // so masked reads still count as fresh for mutation purposes.
-    // Only `read`'s unchanged short-circuit (`isUnchanged`) needs to
-    // skip masked results, because it must genuinely re-serve content.
-    if (opts.visibleOnly && ctx.isMasked?.(m.id ?? "", $p)) continue
     if (opts.full && !p.meta.full) continue
-    if (p.meta.mtime === mtime) return true // Fresh! The file's mtime matches what we saw at read time.
+    // Masking hides content but not metadata: the mtime receipt survives
+    // (fileScore.mask keeps the part shape). A masked receipt with a
+    // matching mtime proves the model saw the current bytes — fresh for
+    // `write` (content rides in params). For `visibleOnly` callers the
+    // content is exactly what's needed, so it's a MASKED rejection, not
+    // STALE: the model's read was valid, its bytes left the context.
+    // Callers that don't set `visibleOnly` never hit the masked branch.
+    if (p.meta.mtime === mtime) {
+      if (!opts.visibleOnly || !ctx.isMasked?.(id, $p)) return true
+      return freshnessError(path, "MASKED")
+    }
     ret = freshnessError(path, "STALE")
   }
   return ret
@@ -266,15 +270,16 @@ export function checkFresh(
  *  stable so the model can branch on it; the message tells the model
  *  what to do next; `data.reason` distinguishes never-read vs
  *  changed-since-read for downstream renderers. */
-export function freshnessError(path: string, reason: "NOT_READ" | "STALE"): AiError {
-  return new AiError({
-    code: "FILE_NOT_FRESH",
-    data: { path, reason },
-    message:
-      reason === "NOT_READ"
-        ? `${path}: read this file before mutating it.`
-        : `${path}: file changed since last read. Re-read before mutating.`,
-  })
+export function freshnessError(
+  path: string,
+  reason: "NOT_READ" | "STALE" | "MASKED"
+): AiError {
+  let message: string
+  if (reason === "NOT_READ") message = `${path}: read this file before mutating it.`
+  else if (reason === "MASKED")
+    message = `${path}: your read was masked (removed from context to save tokens), but the file is unchanged. Re-read it to get the bytes back, then edit.`
+  else message = `${path}: file changed since last read. Re-read before mutating.`
+  return new AiError({ code: "FILE_NOT_FRESH", data: { path, reason }, message })
 }
 
 /** Format a slice of file content as numbered lines plus, when the
