@@ -7,7 +7,7 @@ import { detectEol, normalizeEol } from "@zaly/shared/text"
 import { mkdir, stat, writeFile } from "node:fs/promises"
 import { dirname } from "pathe"
 import { Type } from "typebox"
-import { assertFresh } from "./read.ts"
+import { assertContentFresh } from "./read.ts"
 
 export type WriteTool = typeof writeTool
 
@@ -64,7 +64,9 @@ export const writeTool = defineTool({
     const path = normPath(ctx.cwd, args.path)
 
     // Existing file → freshness required. New file → no requirement.
-    if (safeStat(path)?.isFile()) assertFresh(path, ctx)
+    // Full-content mutation: a masked read still counts (content rides
+    // in params, only the mtime receipt matters).
+    if (safeStat(path)?.isFile()) assertContentFresh(path, ctx)
 
     let text: string
     let original: string | undefined

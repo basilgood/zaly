@@ -187,18 +187,35 @@ export const readTool = defineTool({
 })
 
 export function assertFresh(path: string, ctx: ToolContext) {
+  // `visibleOnly`: the model must still *see* the content it's mutating.
+  // A masked write needs no history (content rides in params), but an
+  // edit's oldText/newText rely on visible bytes — editing from a masked
+  // (invisible) read would text-match blind. The masked-read freshness
+  // exemption is therefore applied by the `write` tool, not here.
+  const err = checkFresh(path, ctx, { visibleOnly: true })
+  if (err !== true) throw err
+}
+
+/** Freshness for full-content mutations (`write`): a masked read still
+ *  counts, because `write`'s content is fully supplied in params — it
+ *  needs the mtime receipt (are these bytes the ones I saw?), not the
+ *  visible bytes themselves. */
+export function assertContentFresh(path: string, ctx: ToolContext) {
   const err = checkFresh(path, ctx)
   if (err !== true) throw err
 }
 
 export function isUnchanged(path: string, ctx: ToolContext) {
-  return checkFresh(path, ctx, { full: true }) === true
+  // `visibleOnly`: the unchanged short-circuit re-serves content to the
+  // model, and masked content is exactly what it can't see — so masked
+  // reads don't qualify, the caller gets the full file back instead.
+  return checkFresh(path, ctx, { full: true, visibleOnly: true }) === true
 }
 
 export function checkFresh(
   path: string,
   ctx: ToolContext,
-  opts: { full?: boolean } = {}
+  opts: { full?: boolean; visibleOnly?: boolean } = {}
 ): AiError | true {
   path = normPath(ctx.cwd, path)
   const mtime = safeStat(path)?.mtimeMs
@@ -209,7 +226,13 @@ export function checkFresh(
 
   for (const { m, $p, p } of extractToolResults<FileMeta>(messages)) {
     const id = m.id
-    if (!id || !isFileMeta(p.meta) || ctx.isMasked?.(id, $p)) continue
+    if (!id || !isFileMeta(p.meta)) continue
+    // Masking hides content but doesn't invalidate the mtime receipt —
+    // metadata survives masking (fileScore.mask keeps the part shape),
+    // so masked reads still count as fresh for mutation purposes.
+    // Only `read`'s unchanged short-circuit (`isUnchanged`) needs to
+    // skip masked results, because it must genuinely re-serve content.
+    if (opts.visibleOnly && ctx.isMasked?.(m.id, $p)) continue
     if (opts.full && !p.meta.full) continue
     if (p.meta.mtime === mtime) return true // Fresh! The file's mtime matches what we saw at read time.
     ret = freshnessError(path, "STALE")

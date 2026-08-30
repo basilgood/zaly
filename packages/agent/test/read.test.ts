@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs
 import { tmpdir } from "node:os"
 import { join } from "pathe"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { assertFresh, readTool } from "../src/tools/read.ts"
+import { assertContentFresh, assertFresh, readTool } from "../src/tools/read.ts"
 
 type ReadResult = string | (TextPart | MetaPart)[]
 
@@ -208,5 +208,27 @@ describe("trackFile / assertFresh", () => {
     // Pretend we read this file with a different mtime.
     const ctx: ToolContext = { messages: [withReadOf(path, 1)] }
     expect(() => assertFresh(path, ctx)).toThrow(/changed since last read/)
+  })
+
+  test("assertFresh rejects a masked read — edit needs visible bytes for oldText", () => {
+    const path = join(dir, "fresh-masked.txt")
+    writeFileSync(path, "hello")
+    const mtime = statSync(path).mtimeMs
+    const ctx: ToolContext = {
+      isMasked: (id: string) => id === "m1",
+      messages: [withReadOf(path, mtime)],
+    }
+    expect(() => assertFresh(path, ctx)).toThrow(/read this file before/i)
+  })
+
+  test("assertContentFresh still counts a masked read — write content rides in params, only the mtime receipt matters", () => {
+    const path = join(dir, "fresh-masked-content.txt")
+    writeFileSync(path, "hello")
+    const mtime = statSync(path).mtimeMs
+    const ctx: ToolContext = {
+      isMasked: (id: string) => id === "m1",
+      messages: [withReadOf(path, mtime)],
+    }
+    expect(() => assertContentFresh(path, ctx)).not.toThrow()
   })
 })
