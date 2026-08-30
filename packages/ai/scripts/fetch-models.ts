@@ -1,26 +1,18 @@
 import type { CatalogModel } from "../src/models/catalog.ts"
 
 import { formatSize } from "@zaly/shared"
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
-/**
- * Fetch the models.dev catalog, snapshot it to `assets/models.json`,
- * and print stats so we can decide on chunking / size trade-offs.
- *
- * Run:  bun packages/ai/scripts/fetch-models.ts
- */
 import { gzipSync } from "node:zlib"
 import { downloadCatalog } from "../src/models/catalog.ts"
 
-const OUT_DIR = join(import.meta.dirname, "..", "assets")
-
+/**
+ * Fetch the models.dev catalog, cache it locally, and print stats.
+ *
+ * Run:  bun packages/ai/scripts/fetch-models.ts
+ */
 const t0 = performance.now()
+const catalog = await downloadCatalog()
 const ms = Math.round(performance.now() - t0)
-const catalog = await downloadCatalog(OUT_DIR)
-const raw = readFileSync(join(OUT_DIR, "snapshot.json"), "utf8")
-const cleaned = readFileSync(join(OUT_DIR, "models.json"), "utf8")
-console.log(`✓ ${formatSize(raw.length)} in ${ms}ms\n`)
-console.log(`→ supported providers/models: ${formatSize(cleaned.length)}`)
+console.log(`✓ fetched + cached in ${ms}ms\n`)
 
 // ── stats ────────────────────────────────────────────────────────────────
 
@@ -30,16 +22,14 @@ for (const p of providers) {
   for (const m of Object.values(p.models)) allModels.push(Object.assign(m, { providerId: p.id }))
 }
 
+const cleaned = JSON.stringify(catalog.$)
 const gzipped = gzipSync(Buffer.from(cleaned)).length
 
-console.log()
 console.log("── size ─────────────────────────────────────────────────────")
-console.log(`  raw JSON:     ${formatSize(raw.length)}`)
 console.log(`  cleaned JSON: ${formatSize(cleaned.length)}`)
 console.log(`  gzipped:      ${formatSize(gzipped)}`)
 console.log(`  providers:    ${providers.length}`)
 console.log(`  models:       ${allModels.length}`)
-console.log(`  avg bytes/model (raw):  ${Math.round(cleaned.length / allModels.length)}`)
 
 console.log()
 console.log("── adapter families (by npm) ────────────────────────────────")
@@ -58,26 +48,7 @@ console.log(`  supported:   ${supported.length} providers · ${supportedModels} 
 console.log(`  skipped:     ${skipped.length} providers · ${skipped.map((p) => p.id).join(", ")}`)
 
 console.log()
-console.log("── per-provider sizes (models count + slice bytes) ──────────")
-const rows = providers
-  .map((p) => {
-    const slice = JSON.stringify(p.models)
-    return {
-      count: Object.keys(p.models).length,
-      id: p.id,
-      kb: slice.length / 1024,
-      npm: p.npm,
-    }
-  })
-  .toSorted((a, b) => b.kb - a.kb)
-for (const r of rows.slice(0, 10)) {
-  console.log(
-    `  ${r.id.padEnd(28)}  ${r.count.toString().padStart(3)} models  ${r.kb.toFixed(1).padStart(6)} KB  ${r.npm}`
-  )
-}
-
-console.log()
-console.log("── feature coverage ─────────────────────────────────────────")
+console.log("── model capabilities ───────────────────────────────────────")
 const reasoning = allModels.filter((m) => m.reasoning).length
 const toolCall = allModels.filter((m) => m.tool_call).length
 const multimodal = allModels.filter((m) => m.modalities.input.some((x) => x !== "text")).length

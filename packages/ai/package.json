@@ -20,13 +20,9 @@
     "directory": "packages/ai"
   },
   "files": [
-    "dist/**/*",
-    "assets/*"
+    "dist/**/*"
   ],
   "type": "module",
-  "imports": {
-    "#assets/*": "./assets/*"
-  },
   "exports": {
     ".": {
       "bun": "./src/index.ts",
@@ -44,7 +40,6 @@
   "scripts": {
     "build": "z build",
     "lint": "z lint",
-    "models": "bun scripts/fetch-models.ts",
     "test": "z test"
   },
   "dependencies": {
