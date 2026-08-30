@@ -1,7 +1,7 @@
 import type { Message, MetaPart, TextPart, ToolContext, ToolResultPart } from "@zaly/ai"
 
 import { AiError } from "@zaly/ai"
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "pathe"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
@@ -125,6 +125,27 @@ describe("read tool — error paths", () => {
     const sub = join(dir, "subdir")
     mkdirSync(sub, { recursive: true })
     await expect(callRead({ path: sub })).rejects.toMatchObject({ code: "NOT_A_FILE" })
+  })
+
+  test("file over the 5MB cap → FILE_TOO_LARGE before reading any bytes", async () => {
+    // Sparse write: only seek to the end and write one byte, so the test
+    // stays cheap while stat() still reports an over-cap size.
+    const path = join(dir, "huge.txt")
+    const fd = openSync(path, "w")
+    try {
+      ftruncateSync(fd, 5 * 1024 * 1024 + 1)
+    } finally {
+      closeSync(fd)
+    }
+    const err = await callRead({ path }).catch((error: AiError) => error)
+    expect(err).toMatchObject({ code: "FILE_TOO_LARGE" })
+    expect((err as AiError).message).toMatch(/use bash/i)
+  })
+
+  test("file just under the cap reads normally", async () => {
+    const path = join(dir, "under-cap.txt")
+    writeFileSync(path, "still fine")
+    await expect(callRead({ path })).resolves.toBeDefined()
   })
 
   test("offset past end yields empty content with a truthful slice meta", async () => {

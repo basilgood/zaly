@@ -25,6 +25,9 @@ import { Type } from "typebox"
  */
 const DEFAULT_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
+/** Beyond this, a read result can't fit context anymore — reject up
+ *  front (see the size guard in `call`). */
+const MAX_READ_BYTES = 5 * 1024 * 1024
 
 export type ReadTool = typeof readTool
 
@@ -108,6 +111,24 @@ export const readTool = defineTool({
     })
     if (!fileStat.isFile()) {
       throw new AiError({ code: "NOT_A_FILE", message: `${path} is not a regular file` })
+    }
+
+    // Hard ceiling before any bytes are read. A legal default `read`
+    // (2000 lines × 2000 chars) on a large enough file would inject more
+    // tokens than fit in the context window, and masking runs too late
+    // to help — the oversized result ships to the provider first. Huge
+    // files are addressable via `bash` (jq/rg/head) instead; the error
+    // tells the model exactly that. Cap is bytes so it bounds RAM churn
+    // and the attachment path (base64 ≈ 4/3×) in one stroke.
+    if (fileStat.size > MAX_READ_BYTES) {
+      throw new AiError({
+        code: "FILE_TOO_LARGE",
+        data: { bytes: fileStat.size, cap: MAX_READ_BYTES, path },
+        message:
+          `${path}: file too large to read (${(fileStat.size / 1e6).toFixed(1)} MB, ` +
+          `cap ${(MAX_READ_BYTES / 1024 / 1024).toFixed(0)} MB). ` +
+          `Use bash to query it in bounded slices (rg, jq, head, tail, sed).`,
+      })
     }
 
     if (isUnchanged(path, ctx)) {
@@ -232,7 +253,7 @@ export function checkFresh(
     // so masked reads still count as fresh for mutation purposes.
     // Only `read`'s unchanged short-circuit (`isUnchanged`) needs to
     // skip masked results, because it must genuinely re-serve content.
-    if (opts.visibleOnly && ctx.isMasked?.(m.id, $p)) continue
+    if (opts.visibleOnly && ctx.isMasked?.(m.id ?? "", $p)) continue
     if (opts.full && !p.meta.full) continue
     if (p.meta.mtime === mtime) return true // Fresh! The file's mtime matches what we saw at read time.
     ret = freshnessError(path, "STALE")
