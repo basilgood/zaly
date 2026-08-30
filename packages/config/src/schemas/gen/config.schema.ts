@@ -138,6 +138,10 @@ export const ConfigSchema = {
                                 type: "number",
                                 description: "Existing messages up to this many tokens will be preserved in the context"
                             },
+                            model: {
+                                type: "string",
+                                description: "Model id used to generate the compaction summary. Falls back to\nthe session model when unset. Summarization is mechanical\nextraction \u2014 a cheaper model does it nearly as well."
+                            },
                             reasoning: {
                                 type: "string",
                                 "enum": [

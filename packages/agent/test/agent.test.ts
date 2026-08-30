@@ -3,7 +3,7 @@ import type { Message } from "@zaly/ai"
 import { defineTool, stringifyContent } from "@zaly/ai"
 import { Type } from "typebox"
 import { describe, expect, test } from "vitest"
-import { mockModel, runAgent, throwingModel } from "./helpers.ts"
+import { loadAgent, mockModel, runAgent, throwingModel } from "./helpers.ts"
 
 const Add = defineTool({
   call: ({ a, b }) => a + b,
@@ -237,6 +237,37 @@ describe("Agent — context overflow", () => {
       model: throwingModel("network down"),
     })
     expect(result.stopReason).toBe("error")
+  })
+})
+
+describe("Agent — compaction summarizer model", () => {
+  test("uses the configured compaction.model instead of the session model", async () => {
+    // Session model errors if used for the summary; the configured
+    // summarizer succeeds. If compaction picked the wrong model, the
+    // run surfaces the throw instead of a completed summary.
+    const sessionModel = throwingModel("session model must not summarize")
+    const summaryModel = mockModel([
+      [
+        { delta: "## 1. Goal\ntest goal", type: "text-delta" },
+        { finishReason: "stop", type: "finish", usage: { input: 10, output: 5 } },
+      ],
+    ])
+    const agent = await loadAgent({
+      compaction: { model: "mock/summary" },
+      loadModel: async (id) => {
+        if (id === "mock/summary") return summaryModel
+        throw new Error(`unexpected model load: ${id}`)
+      },
+      messages: [{ content: "hi", role: "user" }],
+      model: sessionModel,
+    })
+    // Assert before compact: no `compact` node exists yet.
+    await agent.compact()
+    // session.messages flattens the compact node into a system summary
+    // message; check it landed (proves #summarize ran on the summaryModel
+    // — the session model throws if called).
+    const kinds = agent.session.messages.map((m) => m.role)
+    expect(kinds[0]).toBe("system")
   })
 })
 

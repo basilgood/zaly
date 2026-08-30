@@ -69,6 +69,10 @@ export type ResolvedConfig = {
     enabled: boolean
     /** Existing messages up to this many tokens will be preserved in the context */
     keepTokens: number
+    /** Model id used to generate the compaction summary. Falls back to
+     *  the session model when unset. Summarization is mechanical
+     *  extraction — a cheaper model does it nearly as well. */
+    model?: string
     /** Reasoning effort for the compaction summary */
     reasoning: ReasoningEffort
     /** Maximum number of tokens to use for the generated summary */

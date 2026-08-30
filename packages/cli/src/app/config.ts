@@ -334,6 +334,16 @@ export async function editConfig(app: App, opts: { scope?: "user" | "project" } 
       prop: ["compaction", "enabled"],
     }),
     option({
+      desc: "Model used to generate the compaction summary (defaults to the session model)",
+      name: "Compaction Model",
+      prop: ["compaction", "model"],
+      async toggle() {
+        const { pickModel } = await import("./model.ts")
+        const model = await pickModel(app)
+        if (model) this.value = model.id
+      },
+    }),
+    option({
       desc: "Existing messages up to this many tokens will be preserved in the context",
       name: "Compaction Keep Tokens",
       options: [10_000, 20_000, 30_000, 40_000],

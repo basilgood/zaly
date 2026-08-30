@@ -1,9 +1,9 @@
-import type { Message, ReasoningEffort } from "@zaly/ai"
+import type { Message, Model, ReasoningEffort } from "@zaly/ai"
 import type { Agent } from "../agent.ts"
 import type { ContextPressure } from "../types.ts"
 import type { ToolStatOptions } from "./utils.ts"
 
-import { toXml } from "@zaly/ai"
+import { loadModel, toXml } from "@zaly/ai"
 import { SUMMARY_HEADER, SUMMARY_PROMPT, SYSTEM_PROMPT } from "./prompt.ts"
 import {
   extractBashUsage,
@@ -26,6 +26,9 @@ export type CompactionOptions = {
   signal?: AbortSignal
   reasoning?: ReasoningEffort
   trigger?: "manual" | "auto"
+  /** Model id for the summarizer call. Falls back to the session model
+   *  when unset. Resolved once via the agent's `loadModel` and cached. */
+  model?: string
 }
 
 const defaults: CompactionOptions = {
@@ -42,6 +45,7 @@ const defaults: CompactionOptions = {
 export class Compaction {
   #opts: CompactionOptions
   #agent: Agent
+  #summaryModel?: Model
 
   constructor(agent: Agent, opts: Partial<CompactionOptions> = {}) {
     this.#agent = agent
@@ -107,8 +111,7 @@ export class Compaction {
   }
 
   async #summarize(message: Message<"user">): Promise<string> {
-    const model = this.#agent.model
-    if (!model) throw new Error("model must be loaded to compact")
+    const model = await this.#summarizerModel()
     const m = await model.stream(
       {
         messages: [message],
@@ -122,7 +125,23 @@ export class Compaction {
       }
     )
     if (typeof m.content === "string") return m.content
-    const parts = m.content.filter((p) => p.type === "text").map((p) => p.text)
-    return parts.join("\n")
+    return m.content
+      .filter((p) => p.type === "text")
+      .map((p) => ("text" in p ? p.text : ""))
+      .join("\n")
+  }
+
+  /** Resolve the summarizer model: `opts.model` (config) when set, else
+   *  the session model. The resolved instance is cached so repeated
+   *  compactions don't reload it. */
+  async #summarizerModel() {
+    const id = this.#opts.model
+    if (!id || id === this.#agent.model?.id) return this.#agent.model! // compact() guards model presence
+    if (!this.#summaryModel) {
+      const loaded =
+        (await this.#agent.ctx.opts.loadModel?.(id)) ?? (await loadModel(id))
+      this.#summaryModel = loaded
+    }
+    return this.#summaryModel
   }
 }

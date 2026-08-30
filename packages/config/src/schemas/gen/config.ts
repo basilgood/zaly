@@ -31,8 +31,8 @@ const validator = (() => { const _io0 = (input: any, _exceptionable: boolean = t
     if (undefined === value)
         return true;
     return false;
-})); const _io4 = (input: any, _exceptionable: boolean = true): boolean => (undefined === input.enabled || "boolean" === typeof input.enabled) && (undefined === input.keepTokens || "number" === typeof input.keepTokens) && (undefined === input.reasoning || "off" === input.reasoning || "minimal" === input.reasoning || "low" === input.reasoning || "medium" === input.reasoning || "high" === input.reasoning || "xhigh" === input.reasoning || "max" === input.reasoning) && (undefined === input.summaryTokens || "number" === typeof input.summaryTokens) && (undefined === input.threshold || "number" === typeof input.threshold) && (0 === Object.keys(input).length || Object.keys(input).every((key: any) => {
-    if (["enabled", "keepTokens", "reasoning", "summaryTokens", "threshold"].some((prop: any) => key === prop))
+})); const _io4 = (input: any, _exceptionable: boolean = true): boolean => (undefined === input.enabled || "boolean" === typeof input.enabled) && (undefined === input.keepTokens || "number" === typeof input.keepTokens) && (undefined === input.model || "string" === typeof input.model) && (undefined === input.reasoning || "off" === input.reasoning || "minimal" === input.reasoning || "low" === input.reasoning || "medium" === input.reasoning || "high" === input.reasoning || "xhigh" === input.reasoning || "max" === input.reasoning) && (undefined === input.summaryTokens || "number" === typeof input.summaryTokens) && (undefined === input.threshold || "number" === typeof input.threshold) && (0 === Object.keys(input).length || Object.keys(input).every((key: any) => {
+    if (["enabled", "keepTokens", "model", "reasoning", "summaryTokens", "threshold"].some((prop: any) => key === prop))
         return true;
     const value = input[key];
     if (undefined === value)
@@ -369,6 +369,11 @@ const validator = (() => { const _io0 = (input: any, _exceptionable: boolean = t
     path: _path + ".keepTokens",
     expected: "(number | undefined)",
     value: input.keepTokens
+}, _errorFactory)) && (undefined === input.model || "string" === typeof input.model || __typia_transform__assertGuard._assertGuard(_exceptionable, {
+    method: "typia.createAssertEquals",
+    path: _path + ".model",
+    expected: "(string | undefined)",
+    value: input.model
 }, _errorFactory)) && (undefined === input.reasoning || "off" === input.reasoning || "minimal" === input.reasoning || "low" === input.reasoning || "medium" === input.reasoning || "high" === input.reasoning || "xhigh" === input.reasoning || "max" === input.reasoning || __typia_transform__assertGuard._assertGuard(_exceptionable, {
     method: "typia.createAssertEquals",
     path: _path + ".reasoning",
@@ -385,7 +390,7 @@ const validator = (() => { const _io0 = (input: any, _exceptionable: boolean = t
     expected: "(number | undefined)",
     value: input.threshold
 }, _errorFactory)) && (0 === Object.keys(input).length || (false === _exceptionable || Object.keys(input).every((key: any) => {
-    if (["enabled", "keepTokens", "reasoning", "summaryTokens", "threshold"].some((prop: any) => key === prop))
+    if (["enabled", "keepTokens", "model", "reasoning", "summaryTokens", "threshold"].some((prop: any) => key === prop))
         return true;
     const value = input[key];
     if (undefined === value)
