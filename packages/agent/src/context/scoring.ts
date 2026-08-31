@@ -30,8 +30,10 @@ const DEFAULT_HALF_LIFE = 40
 const DEFAULT_WEIGHT = 1
 const DEFAULT_GAMMA = 0.5
 
-const maskedMeta = (result = "result", action = "call"): MetaPart => ({
-  content: `Masked ${result}. Re-${action} to refresh`,
+const maskedMeta = (result = "result", action = "call", line?: number): MetaPart => ({
+  content: line
+    ? `Masked ${result}. Original at session transcript line ${line} — read that line instead of re-calling`
+    : `Masked ${result}. Re-${action} to refresh`,
   tag: "masked",
   type: "meta",
 })
@@ -137,7 +139,10 @@ class MaskPolicy<
   }
 }
 
-class ToolPolicy<T extends Tool = Tool, M extends object = object> extends MaskPolicy<
+class ToolPolicy<
+  T extends Tool = Tool,
+  M extends object = object,
+> extends MaskPolicy<
   ToolPart<T, M>,
   ToolGroup<T, M>
 > {
@@ -179,6 +184,10 @@ class ToolPolicy<T extends Tool = Tool, M extends object = object> extends MaskP
 function truncate(text: string, len: number): string {
   return text.length <= len ? text : `${text.slice(0, len)}…`
 }
+
+/** A masked stub meta part — the generic "Masked …" breadcrumb. */
+export const isMaskedMeta = (c: MetaPart): boolean =>
+  (c as { tag?: string }).tag === "masked"
 
 const fileScore: ToolRule<
   ReadTool | WriteTool | EditTool,

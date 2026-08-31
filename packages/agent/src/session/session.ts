@@ -149,6 +149,12 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     return this.#path
   }
 
+  /** Line number (1-based) of the JSONL record for a message/node id.
+   *  Undefined for unknown ids or non-persisted (in-memory) sessions. */
+  lineOf(id: string): number | undefined {
+    return this.#store.lineOf?.(id)
+  }
+
   get started(): boolean {
     return this.#started
   }

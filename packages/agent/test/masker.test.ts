@@ -32,8 +32,9 @@ type FakeAgent = Agent & {
   }
 }
 
-function fakeAgent(): FakeAgent {
+function fakeAgent(lineOf?: (id: string) => number | undefined): FakeAgent {
   const session = {
+    lineOf,
     maskCheckpoint: undefined as { messageId: string; threshold: number } | undefined,
     addMaskCheckpoint: vi.fn(async (checkpoint: { messageId: string; threshold: number }) => {
       session.maskCheckpoint = checkpoint
@@ -98,6 +99,40 @@ describe("Masker", () => {
       { content: "Masked image. Re-attach to refresh", tag: "masked", type: "meta" },
     ])
     expect(projected[1]).toBe(messages[1])
+  })
+
+  test("masked stubs embed the transcript line number when session provides lineOf", async () => {
+    const agent = fakeAgent((id) => (id === "u1" ? 42 : undefined))
+    const masker = new Masker(agent, { keepTurns: 0, minTokens: 1, target: 0.1 })
+    const messages: Message[] = [
+      user("u1", [{ mime: "image/png", source: { data: "abc", type: "base64" }, type: "image" }]),
+      assistant("a1"),
+    ]
+
+    const projected = await masker.mask(messages, { force: true, limit: 1000, ratio: 1 })
+
+    expect(projected[0].content).toEqual([
+      {
+        content: "Masked image (transcript line 42). Re-attach to refresh",
+        tag: "masked",
+        type: "meta",
+      },
+    ])
+  })
+
+  test("stubs keep generic text when session has no lineOf", async () => {
+    const agent = fakeAgent()
+    const masker = new Masker(agent, { keepTurns: 0, minTokens: 1, target: 0.1 })
+    const messages: Message[] = [
+      user("u1", [{ mime: "image/png", source: { data: "abc", type: "base64" }, type: "image" }]),
+      assistant("a1"),
+    ]
+
+    const projected = await masker.mask(messages, { force: true, limit: 1000, ratio: 1 })
+
+    expect(projected[0].content).toEqual([
+      { content: "Masked image. Re-attach to refresh", tag: "masked", type: "meta" },
+    ])
   })
 
   test("does not mask recent turns protected by keepTurns", async () => {

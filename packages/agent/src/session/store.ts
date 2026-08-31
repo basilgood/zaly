@@ -43,4 +43,8 @@ export interface SessionStore {
    *  the masker's full-history scans. Backends with lazy reads can
    *  override with a more efficient bulk-scan implementation. */
   all?: () => Iterable<SessionNode> | AsyncIterable<SessionNode>
+
+  /** Optional uuid → 1-based transcript line lookup for persisted
+   *  stores. Lets masked stubs point at the exact transcript record. */
+  lineOf?: (id: string) => number | undefined
 }

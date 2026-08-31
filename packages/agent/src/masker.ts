@@ -1,11 +1,11 @@
-import type { AnyPart, Message, Role, Tool } from "@zaly/ai"
+import type { AnyPart, Message, MetaPart, Role, Tool } from "@zaly/ai"
 import type { MaybeGetter } from "@zaly/shared"
 import type { Agent } from "./agent.ts"
 import type { MsgPart } from "./context/scoring.ts"
 import type { Session } from "./session/session.ts"
 
 import { toValue } from "@zaly/shared"
-import { ContextScoring } from "./context/scoring.ts"
+import { ContextScoring, isMaskedMeta } from "./context/scoring.ts"
 import { estimatePart, tokenStats } from "./context/tokens.ts"
 
 /** Top-level masking config. */
@@ -167,6 +167,40 @@ export class Masker {
     this.#stats.set(role, r)
   }
 
+  /** Rewrite masked meta stubs to carry the transcript line number of
+   *  the original record, so the model can recover exact bytes with a
+   *  targeted line read instead of re-calling the tool. */
+  #withLine(part: AnyPart, p: MsgPart): AnyPart {
+    const session = this.#session as unknown as { lineOf?: (id: string) => number | undefined }
+    const line = p.message.id ? session.lineOf?.(p.message.id) : undefined
+    if (!line) return part
+    // Bare stub (attachment/task masks): the part itself is the meta.
+    const stub = part as unknown as MetaPart
+    if (isMaskedMeta(stub) && typeof stub.content === "string") {
+      return {
+        ...stub,
+        content: stub.content.replace(
+          /^Masked ([\w-]+)\./,
+          `Masked $1 (transcript line ${line}).`
+        ),
+      } as AnyPart
+    }
+    // Wrapped stub (tool results): meta parts inside a content array.
+    if (!("content" in part) || !Array.isArray(part.content)) return part
+    return {
+      ...part,
+      content: (part.content as MetaPart[]).map((c) => {
+        const text = c.content
+        return isMaskedMeta(c) && typeof text === "string"
+          ? {
+              ...c,
+              content: text.replace(/^Masked ([\w-]+)\./, `Masked $1 (transcript line ${line}).`),
+            }
+          : c
+      }),
+    } as AnyPart
+  }
+
   /** Recompute mask decisions for the current message history. */
   #update(messages: readonly Message[], opts: Required<MaskOpts>): void {
     this.#masked.clear()
@@ -193,7 +227,7 @@ export class Masker {
       for (const p of s.parts) {
         parts.push({
           ...p,
-          mask: () => s.policy.mask(p, s),
+          mask: () => this.#withLine(s.policy.mask(p, s), p),
         })
       }
     }
