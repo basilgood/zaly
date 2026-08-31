@@ -17,9 +17,12 @@ export type EditToolMeta = FileMeta & {
 }
 
 /**
- * Apply one or more exact-text replacements to a file.
+ * Apply replacement(s) to a file.
  *
  * Semantics:
+ *   - A single edit via top-level `oldText`/`newText`; a batch via
+ *     `edits`; or both combined — the top-level pair is edit #0 and
+ *     `edits` entries follow.
  *   - All `oldText` matches are resolved against the *original* file
  *     content. Edits are not applied sequentially — so edit #1's
  *     `newText` cannot accidentally produce a match for edit #2's
@@ -38,15 +41,26 @@ export type EditToolMeta = FileMeta & {
 export const editTool = defineTool({
   name: "edit",
   desc:
-    "Apply an exact-text replacement to a file, with optional extra replacements.. All matches are " +
+    "Apply exact-text replacement(s) to a file: a single edit via `oldText`/`newText`, a batch " +
+    "via `edits`, or both combined (the top-level pair is applied as edit #0). All matches are " +
     "resolved against the original content (not sequentially), each `oldText` " +
     "must be unique in the file, and edits must not overlap. " +
     "Atomic: all-or-nothing.",
   // oxlint-disable-next-line sort-keys -- semantic param order
   params: Type.Object({
     path: Type.String({ description: "Path to the file. Absolute or cwd-relative." }),
-    oldText: Type.String({ description: "Exact text to find. Must occur once in the file." }),
-    newText: Type.String({ description: "Replacement text." }),
+    oldText: Type.Optional(
+      Type.String({
+        description:
+          "Exact text to find. Must occur once in the file. May be omitted when `edits` is provided.",
+      })
+    ),
+    newText: Type.Optional(
+      Type.String({
+        description:
+          "Replacement text. Required together with `oldText` when `edits` is not provided.",
+      })
+    ),
     edits: Type.Optional(
       Type.Array(
         // oxlint-disable-next-line sort-keys -- semantic order: oldText then newText
@@ -71,7 +85,29 @@ export const editTool = defineTool({
   ): Promise<{ ok: true; path: string; bytes: number; lines: number; edits: number }> {
     const path = normPath(ctx.cwd, args.path)
 
-    const edits = [{ newText: args.newText, oldText: args.oldText }, ...(args.edits ?? [])]
+    const hasPair = args.oldText !== undefined || args.newText !== undefined
+    if (hasPair && (args.oldText === undefined || args.newText === undefined)) {
+      throw new AiError({
+        code: "INVALID_INPUT",
+        message: "edit requires both `oldText` and `newText`, or a non-empty `edits` array",
+      })
+    }
+
+    const edits: EditSpec[] = args.edits ? [...args.edits] : []
+    // The top-level pair becomes edit #0; `edits` entries follow in order.
+    // A pair identical to an `edits` entry is just the model echoing the
+    // same replacement twice — drop the pair, keep the entry (applying
+    // both would collide as OVERLAP).
+    if (hasPair) {
+      const dup = edits.some((e) => e.oldText === args.oldText && e.newText === args.newText)
+      if (!dup) edits.unshift({ newText: args.newText!, oldText: args.oldText! })
+    }
+    if (edits.length === 0) {
+      throw new AiError({
+        code: "INVALID_INPUT",
+        message: "nothing to apply — provide `oldText`/`newText` or a non-empty `edits` array",
+      })
+    }
 
     // Edit always requires freshness — the operation is content-aware,
     // so the model must have seen the current bytes.
