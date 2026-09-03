@@ -128,9 +128,9 @@ export function* extractToolResults<M extends object = object, T extends string 
  *
  *  It does NOT validate against the tool's schema and does NOT coerce
  *  types — for that, use `validateToolParams`. Use this when you need
- *  a best-effort read of params for inspection (e.g. the masker
- *  pulling `path` for file ops), not when correctness depends on the
- *  shape being exactly `Params`. The return type is `Partial<...>` to
+ *  a best-effort read of params for inspection, not when correctness
+ *  depends on the shape being exactly `Params`. The return type is
+ *  `Partial<...>` to
  *  remind callers that any field could legitimately be missing or
  *  off-shape on the failure path. */
 export function safeParseToolParams<T extends Tool = Tool>(params: unknown): SafeParamsOf<T> {

@@ -38,7 +38,6 @@ export async function loadAgent(app: App): Promise<Agent> {
       return await models.load(id)
     },
     logger: ctx.logger.child("agent"),
-    mask: () => app.$.masking,
     permissions: ctx.flags.yolo
       ? { preset: "yolo" }
       : {

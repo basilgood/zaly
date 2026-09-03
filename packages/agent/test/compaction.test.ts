@@ -218,7 +218,7 @@ describe("messageTail", () => {
     expect(messageTail(session.messages, { keepTokens: 50 })).toEqual([messages[4]])
   })
 
-  test("masker-style shrink — clamp prevents under-charge of newer growth", async () => {
+  test("clamp prevents under-charge of newer growth", async () => {
     const { session, messages } = await build([
       [u("q1")],
       [a("a1"), usage(50, 10, { cacheRead: 200 })],
@@ -231,7 +231,7 @@ describe("messageTail", () => {
     expect(tail).toEqual(messages.slice(5))
   })
 
-  test("masker-style shrink — clamp does not let walk consume infinite history", async () => {
+  test("clamp does not let walk consume infinite history", async () => {
     const { session, messages } = await build([
       [u("q1")],
       [a("a1"), usage(50, 50, { cacheRead: 100 })],
@@ -257,17 +257,17 @@ describe("messageTail", () => {
     expect(tail).toEqual([messages[3]])
   })
 
-  test("opts.messages overrides session.messages — used for masked agent view", async () => {
+  test("opts.messages overrides session.messages", async () => {
     const { messages } = await build([
       [u("q1")],
       [a("a1"), usage(50, 10)],
       [u("q2")],
       [a("a2"), usage(110, 20)],
     ])
-    const masked: Message[] = messages.map((m) => structuredClone(m))
-    const tail = messageTail(masked, { keepTokens: 1000 })
-    expect(tail).toEqual(masked.slice(1))
-    expect(tail.every((m, i) => m === masked[i + 1])).toBe(true)
+    const cloned: Message[] = messages.map((m) => structuredClone(m))
+    const tail = messageTail(cloned, { keepTokens: 1000 })
+    expect(tail).toEqual(cloned.slice(1))
+    expect(tail.every((m, i) => m === cloned[i + 1])).toBe(true)
   })
 
   test("default budget kicks in when maxTokens is omitted (20k)", async () => {

@@ -197,9 +197,9 @@ export class Skills {
 
   async isActivated(skill: SkillEntry, ctx: ToolContext<SkillMeta>): Promise<boolean> {
     const messages = ctx.messages ?? []
-    for (const { m, $p, p } of extractToolResults<SkillMeta, "skill">(messages, ["skill"])) {
+    for (const { m, p } of extractToolResults<SkillMeta, "skill">(messages, ["skill"])) {
       const id = m.id
-      if (!id || !p.meta || ctx.isMasked?.(id, $p)) continue
+      if (!id || !p.meta) continue
       if (p.meta.unchanged) continue
       if (p.meta.name === skill.name) return p.meta.mtime === skill.mtime
     }

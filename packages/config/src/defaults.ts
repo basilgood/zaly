@@ -24,13 +24,6 @@ export const defaultSettings = {
     summaryTokens: 10_000,
     threshold: 0.95,
   },
-  masking: {
-    delta: 0.25,
-    enabled: true,
-    keepTurns: 40,
-    minTokens: 50,
-    target: 0.5,
-  },
   skills: {
     actionPrefix: "skill:",
     actions: true,

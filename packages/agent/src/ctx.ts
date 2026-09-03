@@ -1,7 +1,6 @@
 import type { Model, ReasoningEffort, Tool } from "@zaly/ai"
 import type { Agent } from "./agent.ts"
 import type { AgentStatus } from "./events.ts"
-import type { Masker } from "./masker.ts"
 import type { Notifier, NotifyOptions } from "./notify.ts"
 import type { PermissionManager, PermissionOptions } from "./permissions/manager.ts"
 import type { Session } from "./session/session.ts"
@@ -16,7 +15,6 @@ type AgentContextOptions = Omit<AgentOptions, "session"> & { session: Session }
 
 type Slots = {
   notifier: Notifier
-  masker: Masker
   permissions: PermissionManager
   swarm: Swarm
 }
@@ -70,7 +68,7 @@ export class AgentContext extends Emitter<AgentContextEvents> {
   }
 
   private async start() {
-    const [_masker, notifier] = await Promise.all([this.masker(), this.notifier()])
+    const notifier = await this.notifier()
 
     if (!this.model) throw new Error("model is required to start agent session")
 
@@ -222,16 +220,6 @@ export class AgentContext extends Emitter<AgentContextEvents> {
     )
   }
 
-  async masker(): Promise<Masker | undefined> {
-    return this.#cache.want(
-      "masker",
-      async (opts?: AgentOptions["mask"]) => {
-        const { Masker } = await import("./masker.ts")
-        return new Masker(this.agent, opts)
-      },
-      this.#opts.mask
-    )
-  }
 
   async permissions(): Promise<PermissionManager> {
     return this.#cache.need(

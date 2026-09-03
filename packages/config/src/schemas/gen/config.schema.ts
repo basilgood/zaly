@@ -25,7 +25,7 @@ export const ConfigSchema = {
                     },
                     contextWindow: {
                         type: "number",
-                        description: "Context window (tokens) used as the reference for masking and\ncompaction pressure. When unset, the model's full declared context\nis used. Set it to keep the session inside a \"good\" window \u2014 models\ndegrade well before their max, so firing compaction relative to a\nsmaller window avoids the hallucination zone."
+                        description: "Context window (tokens) used as the reference for compaction\npressure. When unset, the model's full declared context\nis used. Set it to keep the session inside a \"good\" window \u2014 models\ndegrade well before their max, so firing compaction relative to a\nsmaller window avoids the hallucination zone."
                     },
                     tools: {
                         type: "array",
@@ -162,32 +162,6 @@ export const ConfigSchema = {
                             threshold: {
                                 type: "number",
                                 description: "Threshold for automatic compaction."
-                            }
-                        },
-                        required: []
-                    },
-                    masking: {
-                        type: "object",
-                        properties: {
-                            enabled: {
-                                type: "boolean",
-                                description: "Whether to enable masking. Defaults to true."
-                            },
-                            minTokens: {
-                                type: "number",
-                                description: "Don't mask tool-result parts whose original content is shorter\nthan this (estimated tokens). Skips tiny \"ok\"-style success\nmessages where the stub would be larger than the original.\nDoesn't apply to attachments (always worth masking)."
-                            },
-                            keepTurns: {
-                                type: "number",
-                                description: "How many turns to keep in the tail of the conversation, regardless\nof score. Defaults to 20."
-                            },
-                            delta: {
-                                type: "number",
-                                description: "How far above the target ratio to trigger a new masking pass.\nDefaults to 0.25 (25%)."
-                            },
-                            target: {
-                                type: "number",
-                                description: "Target ratio of used/limit tokens to reach by masking. Defaults to 0.5 (50%)."
                             }
                         },
                         required: []

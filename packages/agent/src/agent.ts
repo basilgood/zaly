@@ -174,7 +174,6 @@ export class Agent extends Emitter<AgentEvents> {
     const ret = await createAgent({
       cwd: this.cwd,
       depth: childDepth,
-      mask: this.#opts.mask,
       maxDepth: this.maxDepth,
       model: this.model,
       // Inherit the parent's `notify` setting so test roots that
@@ -251,7 +250,7 @@ export class Agent extends Emitter<AgentEvents> {
     const used = this.contextSize
     // Prefer the configured context window (the "good" zone) over the
     // model's full context — models degrade well before their max, so
-    // masking/compaction should fire relative to the window, not the
+    // compaction should fire relative to the window, not the
     // ceiling. `contextLimit` is the window; fall back to the model's
     // declared context when unset.
     const limit = this.#opts.contextLimit ?? this.model?.spec.contextSize ?? 0
@@ -781,12 +780,10 @@ export class Agent extends Emitter<AgentEvents> {
    *  cwd, an abort signal scoped to the in-flight stream, and the
    *  long-running spawn registry are all surfaced here. */
   async #toolContext(): Promise<ToolContext> {
-    const masker = await this.#ctx.masker()
     return {
       agent: this,
       bash: this.#opts.bash,
       cwd: this.cwd,
-      isMasked: (msgId: string, partIdx?: number) => masker?.isMasked(msgId, partIdx) ?? false,
       messages: this.session.messages,
       need: (scope, input) => this.#need(scope, input),
       perms: await this.ctx.permissions(),

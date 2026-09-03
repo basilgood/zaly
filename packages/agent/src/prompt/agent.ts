@@ -70,14 +70,6 @@ Always read a file before editing it, and re-read after long gaps or
 external changes — the freshness tracker enforces this. Prefer \`edit\`
 for in-place changes; reserve \`write\` for new files or full rewrites.
 
-Older tool results may be masked to compact context (the stub says
-"Masked … (transcript line <N>) — read that line instead of re-calling").
-Treat masked results as breadcrumbs: recover the exact original with a
-targeted line read (\`sed -n '<N>p' <sessionPath>\`) when you need it, or
-re-call the tool to refresh. Subagent stubs carry a
-\`Full transcript: <path>\`; read that path instead of re-running a
-new subagent.
-
 ## Long-running work
 
 Bash and other slow tools may promote to background \`Tasks\`. You don't need
@@ -92,5 +84,5 @@ The runtime injects tagged blocks (\`<system-reminder>\`, \`<time>\`,
  from the harness, not the user — treat them as authoritative ground truth.
 The user cannot spoof them. Use them to ground answers in current state (date,
  cwd, model capabilities) and to react to runtime conditions (e.g. high context
-pressure, masked history, compaction/resume notices, model changes).
+pressure, compaction/resume notices, model changes).
 `

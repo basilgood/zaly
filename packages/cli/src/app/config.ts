@@ -199,7 +199,7 @@ export async function editConfig(app: App, opts: { scope?: "user" | "project" } 
       prop: ["reasoning"],
     }),
     option({
-      desc: "Context window (tokens) used as the reference for masking and compaction",
+      desc: "Context window (tokens) used as the reference for compaction",
       name: "Context Window",
       prop: ["contextWindow"],
       async toggle() {
@@ -367,37 +367,6 @@ export async function editConfig(app: App, opts: { scope?: "user" | "project" } 
       options: [0.75, 0.85, 0.95],
       prop: ["compaction", "threshold"],
       render: renderPct,
-    }),
-    toggle({
-      desc: "Whether to enable masking",
-      name: "Enable Masking",
-      prop: ["masking", "enabled"],
-    }),
-    option({
-      desc: "Minimum number of tokens to keep in the tail of the conversation, regardless of score",
-      name: "Masking Keep Turns",
-      options: [10, 20, 30, 40],
-      prop: ["masking", "keepTurns"],
-    }),
-    option({
-      desc: "How far above the target ratio to trigger a new masking pass",
-      name: "Masking Delta",
-      options: [0.1, 0.25, 0.5],
-      prop: ["masking", "delta"],
-      render: renderPct,
-    }),
-    option({
-      desc: "Target ratio of used/limit tokens to reach by masking",
-      name: "Masking Target",
-      options: [0.25, 0.5, 0.75],
-      prop: ["masking", "target"],
-      render: renderPct,
-    }),
-    option({
-      desc: "Don't mask tool-result parts whose original content is shorter than this (estimated tokens)",
-      name: "Masking Min Tokens",
-      options: [10, 50, 100, 200],
-      prop: ["masking", "minTokens"],
     }),
   ]
 

@@ -37,9 +37,8 @@ export type FileMeta = {
   kind: "read" | "write" | "edit"
   /** True when the result reflects the whole-file content — set by
    *  un-sliced `read` and by `write` (which always replaces the
-   *  full file). Used by the masker to know whether this result
-   *  subsumes earlier reads of the same path. `edit` never sets it
-   *  because the result is patch-relative. */
+   *  full file). `edit` never sets it because the result is
+   *  patch-relative. */
   full?: boolean
   unchanged?: boolean
 }
@@ -115,11 +114,11 @@ export const readTool = defineTool({
 
     // Hard ceiling before any bytes are read. A legal default `read`
     // (2000 lines × 2000 chars) on a large enough file would inject more
-    // tokens than fit in the context window, and masking runs too late
-    // to help — the oversized result ships to the provider first. Huge
-    // files are addressable via `bash` (jq/rg/head) instead; the error
-    // tells the model exactly that. Cap is bytes so it bounds RAM churn
-    // and the attachment path (base64 ≈ 4/3×) in one stroke.
+    // tokens than fit in the context window — the oversized result ships
+    // to the provider first. Huge files are addressable via `bash`
+    // (jq/rg/head) instead; the error tells the model exactly that. Cap
+    // is bytes so it bounds RAM churn and the attachment path
+    // (base64 ≈ 4/3×) in one stroke.
     if (fileStat.size > MAX_READ_BYTES) {
       throw new AiError({
         code: "FILE_TOO_LARGE",
@@ -191,9 +190,7 @@ export const readTool = defineTool({
     })
 
     // Record the read so the freshness tracker knows we've seen this
-    // file's current bytes. write/edit consult this before mutating;
-    // the masker uses `full` to know whether this read subsumes
-    // earlier reads of the same path.
+    // file's current bytes. write/edit consult this before mutating.
     ctx.meta = {
       full: slice.full,
       kind: "read",
@@ -245,7 +242,7 @@ export function checkFresh(
   const messages = ctx.messages ?? []
   let ret: AiError = freshnessError(path, "NOT_READ")
 
-  for (const { m, $p, p } of extractToolResults<FileMeta>(messages)) {
+  for (const { m, p } of extractToolResults<FileMeta>(messages)) {
     const id = m.id
     if (!id || !isFileMeta(p.meta)) continue
     if (opts.full && !p.meta.full) continue

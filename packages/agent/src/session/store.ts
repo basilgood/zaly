@@ -39,9 +39,9 @@ export interface SessionStore {
   /** Optional flush + cleanup hook — called by `Session.close()`. */
   close?: () => Promise<void>
 
-  /** Optional bulk iterator for the full DAG — used by `/tree` UI and
-   *  the masker's full-history scans. Backends with lazy reads can
-   *  override with a more efficient bulk-scan implementation. */
+  /** Optional bulk iterator for the full DAG — used by `/tree` UI.
+   *  Backends with lazy reads can override with a more efficient
+   *  bulk-scan implementation. */
   all?: () => Iterable<SessionNode> | AsyncIterable<SessionNode>
 
   /** Optional uuid → 1-based transcript line lookup for persisted

@@ -266,7 +266,7 @@ export function messageTail(
     const usage = m.role === "assistant" ? m.meta?.usage : undefined
     if (!usage) continue
     const current = usage.input + usage.output + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0)
-    // clamp for masker and similar events that might shrink the context size
+    // clamp for events that might shrink the context size
     const delta = Math.max(0, (last ?? current) - current)
     if (used + delta > maxTokens) break
     used += delta

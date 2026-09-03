@@ -157,7 +157,7 @@ export async function runAgent(
 /** Load a session for harness scripts. Detects Claude Code session
  *  files (path contains `.claude`) and converts on the fly into an
  *  in-memory zaly Session; otherwise loads the path as a native zaly
- *  session JSONL. Used by `test/compaction.ts` and `test/masker.ts`. */
+ *  session JSONL. Used by `test/compaction.ts`. */
 export async function loadSession(path: string, opts?: { limit?: number }): Promise<Session> {
   path = normPath(path)
   if (path.includes(".claude")) {
