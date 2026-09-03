@@ -1,7 +1,7 @@
 import type { MetaPart, TextPart, Tool, ToolContext } from "@zaly/ai"
 import type { Agent } from "./agent.ts"
 
-import { AiError, defineTool, extractToolResults } from "@zaly/ai"
+import { AiError, defineTool } from "@zaly/ai"
 import { safeStatAsync } from "@zaly/shared"
 import { glob } from "@zaly/shared/glob"
 import { readFile } from "node:fs/promises"
@@ -14,7 +14,6 @@ export type SkillMeta = {
   mtime: number
   desc: string
   path: string
-  unchanged?: boolean
 }
 
 export type SkillTool = Tool<{ name: string }, unknown, SkillMeta>
@@ -167,22 +166,9 @@ export class Skills {
       })
     }
 
-    // Refresh the skill entry so we have an up-to-date mtime for staleness checks in `isActivated`.
     skill = await this.#update(skill)
 
     ctx.meta = { desc: skill.desc, mtime: skill.mtime, name: skill.name, path: skill.path }
-    const activated = await this.isActivated(skill, ctx)
-    if (activated) {
-      // Already activated and fresh — no need to reload or update the tool result.
-      ctx.meta.unchanged = true
-      return [
-        {
-          content: `skill "${skill.name}" unchanged since last read: ${skill.path}`,
-          tag: "unchanged",
-          type: "meta",
-        },
-      ]
-    }
 
     const references = await listReferences(skill.dir)
     return [
@@ -195,25 +181,12 @@ export class Skills {
     ]
   }
 
-  async isActivated(skill: SkillEntry, ctx: ToolContext<SkillMeta>): Promise<boolean> {
-    const messages = ctx.messages ?? []
-    for (const { m, p } of extractToolResults<SkillMeta, "skill">(messages, ["skill"])) {
-      const id = m.id
-      if (!id || !p.meta) continue
-      if (p.meta.unchanged) continue
-      if (p.meta.name === skill.name) return p.meta.mtime === skill.mtime
-    }
-    return false
-  }
-
   async activate(name: string, agent: Agent) {
-    const ret = await agent.useTool<SkillTool>(
+    return agent.useTool<SkillTool>(
       "skill",
       { name },
       `Skill "${name}" was activated by the user.`
     )
-    if (ret.result.meta?.unchanged) return
-    return ret
   }
 
   #buildCatalogDesc(): string {

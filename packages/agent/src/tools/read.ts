@@ -1,7 +1,7 @@
 import type { Content, ToolContext } from "@zaly/ai"
 
-import { AiError, defineTool, extractToolResults, toAttachment } from "@zaly/ai"
-import { normPath, safeStat } from "@zaly/shared"
+import { AiError, defineTool, toAttachment } from "@zaly/ai"
+import { normPath } from "@zaly/shared"
 import { fileDetect } from "@zaly/shared/detect"
 import { normalizeEol } from "@zaly/shared/text"
 import { stat } from "node:fs/promises"
@@ -40,19 +40,6 @@ export type FileMeta = {
    *  full file). `edit` never sets it because the result is
    *  patch-relative. */
   full?: boolean
-  unchanged?: boolean
-}
-
-function isFileMeta(meta: unknown): meta is FileMeta {
-  const m = meta as Partial<Record<string, unknown>> | undefined | null
-  return (
-    m !== undefined &&
-    m !== null &&
-    typeof m === "object" &&
-    typeof m.path === "string" &&
-    typeof m.mtime === "number" &&
-    (m.kind === "read" || m.kind === "write" || m.kind === "edit")
-  )
 }
 
 export type ReadToolMeta = FileMeta & {
@@ -130,23 +117,6 @@ export const readTool = defineTool({
       })
     }
 
-    if (isUnchanged(path, ctx)) {
-      // Fresh! We've seen this file's current bytes, so we can skip
-      // returning the content again.
-      ctx.meta = {
-        full: false,
-        kind: "read",
-        limit: 0,
-        mtime: fileStat.mtimeMs,
-        offset: 0,
-        path,
-        unchanged: true,
-      }
-      return [
-        { content: `file unchanged since last read: ${path}`, tag: "unchanged", type: "meta" },
-      ]
-    }
-
     const file = await fileDetect(path)
     if (!file) {
       throw new AiError({
@@ -203,81 +173,6 @@ export const readTool = defineTool({
     return slice.content
   },
 })
-
-export function assertFresh(path: string, ctx: ToolContext) {
-  // `visibleOnly`: the model must still *see* the content it's mutating.
-  // A masked write needs no history (content rides in params), but an
-  // edit's oldText/newText rely on visible bytes — editing from a masked
-  // (invisible) read would text-match blind. The masked-read freshness
-  // exemption is therefore applied by the `write` tool, not here.
-  const err = checkFresh(path, ctx, { visibleOnly: true })
-  if (err !== true) throw err
-}
-
-/** Freshness for full-content mutations (`write`): a masked read still
- *  counts, because `write`'s content is fully supplied in params — it
- *  needs the mtime receipt (are these bytes the ones I saw?), not the
- *  visible bytes themselves. */
-export function assertContentFresh(path: string, ctx: ToolContext) {
-  const err = checkFresh(path, ctx)
-  if (err !== true) throw err
-}
-
-export function isUnchanged(path: string, ctx: ToolContext) {
-  // `visibleOnly`: the unchanged short-circuit re-serves content to the
-  // model, and masked content is exactly what it can't see — so masked
-  // reads don't qualify, the caller gets the full file back instead.
-  return checkFresh(path, ctx, { full: true, visibleOnly: true }) === true
-}
-
-export function checkFresh(
-  path: string,
-  ctx: ToolContext,
-  opts: { full?: boolean; visibleOnly?: boolean } = {}
-): AiError | true {
-  path = normPath(ctx.cwd, path)
-  const mtime = safeStat(path)?.mtimeMs
-  if (mtime === undefined)
-    return new AiError({ code: "NOT_FOUND", message: `${path}: file not found` })
-  const messages = ctx.messages ?? []
-  let ret: AiError = freshnessError(path, "NOT_READ")
-
-  for (const { m, p } of extractToolResults<FileMeta>(messages)) {
-    const id = m.id
-    if (!id || !isFileMeta(p.meta)) continue
-    if (opts.full && !p.meta.full) continue
-    // Masking hides content but not metadata: the mtime receipt survives
-    // (fileScore.mask keeps the part shape). A masked receipt with a
-    // matching mtime proves the model saw the current bytes — fresh for
-    // `write` (content rides in params). For `visibleOnly` callers the
-    // content is exactly what's needed, so it's a MASKED rejection, not
-    // STALE: the model's read was valid, its bytes left the context.
-    // Callers that don't set `visibleOnly` never hit the masked branch.
-    if (p.meta.mtime === mtime) {
-      if (!opts.visibleOnly || !ctx.isMasked?.(id, $p)) return true
-      return freshnessError(path, "MASKED")
-    }
-    ret = freshnessError(path, "STALE")
-  }
-  return ret
-}
-
-/** Build the canonical "you need to read this first" error. Used by
- *  `write` (existing files only) and `edit` (always). The `code` is
- *  stable so the model can branch on it; the message tells the model
- *  what to do next; `data.reason` distinguishes never-read vs
- *  changed-since-read for downstream renderers. */
-export function freshnessError(
-  path: string,
-  reason: "NOT_READ" | "STALE" | "MASKED"
-): AiError {
-  let message: string
-  if (reason === "NOT_READ") message = `${path}: read this file before mutating it.`
-  else if (reason === "MASKED")
-    message = `${path}: your read was masked (removed from context to save tokens), but the file is unchanged. Re-read it to get the bytes back, then edit.`
-  else message = `${path}: file changed since last read. Re-read before mutating.`
-  return new AiError({ code: "FILE_NOT_FRESH", data: { path, reason }, message })
-}
 
 /** Format a slice of file content as numbered lines plus, when the
  *  slice doesn't cover the whole file, a `<slice>` MetaPart with

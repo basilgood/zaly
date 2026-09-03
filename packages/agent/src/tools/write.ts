@@ -2,12 +2,11 @@ import type { ToolContext } from "@zaly/ai"
 import type { FileMeta } from "./read.ts"
 
 import { AiError, defineTool } from "@zaly/ai"
-import { normPath, safeReadFile, safeStat } from "@zaly/shared"
+import { normPath, safeReadFile } from "@zaly/shared"
 import { detectEol, normalizeEol } from "@zaly/shared/text"
 import { mkdir, stat, writeFile } from "node:fs/promises"
 import { dirname } from "pathe"
 import { Type } from "typebox"
-import { assertContentFresh } from "./read.ts"
 
 export type WriteTool = typeof writeTool
 
@@ -28,12 +27,6 @@ export type WriteToolMeta = FileMeta & {
  * `detectEol`) and re-applies it on write so a CRLF file stays CRLF
  * after an LF-from-the-model overwrite. No trailing-newline injection,
  * no whitespace stripping.
- *
- * Freshness: when the target file already exists, the model must have
- * read it in this session and the on-disk mtime must be unchanged
- * since that read. Otherwise the tool refuses with `FILE_NOT_FRESH` —
- * "read this file before overwriting it." New files (path doesn't
- * exist) bypass this check; nothing to be fresh against.
  *
  * Returns a small acknowledgement (`{ ok, bytes, lines }`) rather than
  * echoing the content back — the model already has it. `bytes` reflects
@@ -62,11 +55,6 @@ export const writeTool = defineTool({
     ctx: ToolContext<WriteToolMeta>
   ): Promise<{ ok: true; path: string; bytes: number; lines: number }> {
     const path = normPath(ctx.cwd, args.path)
-
-    // Existing file → freshness required. New file → no requirement.
-    // Full-content mutation: a masked read still counts (content rides
-    // in params, only the mtime receipt matters).
-    if (safeStat(path)?.isFile()) assertContentFresh(path, ctx)
 
     let text: string
     let original: string | undefined
