@@ -1,8 +1,6 @@
 import type { MetaPart, Streamable, TextPart, ToolContext, ToolResult } from "@zaly/ai"
 
 import { AiError, defineTool, stringifyContent } from "@zaly/ai"
-import { tmpdir } from "node:os"
-import { join } from "pathe"
 import { Type } from "typebox"
 import { uuidv7 } from "../utils/uuid.ts"
 
@@ -18,10 +16,8 @@ import { uuidv7 } from "../utils/uuid.ts"
  * final assistant message lands as a `task-done` system inject when the
  * child stops naturally.
  *
- * Persistence: each subagent gets its own JSONL session file under
- * `tmpdir`, keyed by id. The final `<subagent>` MetaPart references the
- * path so the parent can re-load the full conversation if it needs more
- * than the surface answer.
+ * The subagent runs on an in-memory session; only its final answer is
+ * surfaced to the parent — no external transcript file is exposed.
  *
  * Auth: the spawned `Agent` shares the parent's `PermissionManager`
  * instance — same workspaces, same rules. (We don't deep-copy yet; if a
@@ -32,7 +28,6 @@ export type SubagentMeta = {
   id: string
   depth: number
   durationMs?: number
-  sessionPath: string
   /** Lifecycle state — visible to the model in the `<subagent>` MetaPart
    *  so it can tell a partial running snapshot apart from a final
    *  answer. `running` snapshots accompany text that's still streaming;
@@ -54,8 +49,7 @@ export const subagentTool = defineTool({
     "for tasks that benefit from a clean context window: deep code " +
     "exploration, multi-step research, or anything where dragging the " +
     "intermediate steps through your own context would be expensive. The " +
-    "subagent's final answer comes back as the result; full transcript is " +
-    "available at the returned `sessionPath` if you need more detail.",
+    "subagent's final answer comes back as the result.",
   parallel: true,
   params: Type.Object({
     description: Type.String({
@@ -87,7 +81,6 @@ export const subagentTool = defineTool({
     }
 
     const id = uuidv7()
-    const sessionPath = join(tmpdir(), `zaly-subagent-${id}.jsonl`)
     const startedAt = Date.now()
     const { Session } = await import("../session/session.ts")
 
@@ -96,7 +89,7 @@ export const subagentTool = defineTool({
     // and the `subagent`-tool filtering at the depth cap.
     const child = await parent.child({
       prompt: [args.prompt],
-      session: await Session.load({ path: sessionPath }),
+      session: await Session.load(),
     })
     const depth = child.depth
 
@@ -126,7 +119,6 @@ export const subagentTool = defineTool({
       depth,
       durationMs: Date.now() - startedAt,
       id,
-      sessionPath,
       status: running ? "running" : "done",
       stop: stopReason,
       usage: { input: child.totalUsage.input, output: child.totalUsage.output },
@@ -153,7 +145,7 @@ export const subagentTool = defineTool({
       const meta = buildMeta(running)
       // Live snapshot: emit the meta + only the *new* text since last poll
       // (advancing the cursor), matching the bash tool's increment-poll
-      // semantic. The full text is reachable via the session file.
+      // semantic.
       const slice = textBuffer.slice(cursor)
       cursor = textBuffer.length
 
@@ -168,12 +160,7 @@ export const subagentTool = defineTool({
         const answer = finalText()
         if (answer !== "") parts.push({ text: answer, type: "text" })
       }
-      // Carry `sessionPath` in the wire-invisible `meta` sidecar so it
-      // survives masking (which stubs `content` but preserves `meta`).
-      // The `<subagent>` MetaPart in `content` is the model-facing
-      // pointer; `meta` keeps the transcript reachable even after the
-      // answer is masked away.
-      return { content: parts, isError: false, meta: { sessionPath }, running }
+      return { content: parts, isError: false, running }
     }
 
     return {
@@ -182,9 +169,6 @@ export const subagentTool = defineTool({
       },
       done: runDone.then(
         async () => {
-          // Flush + close the JSONL writer so the file is fully on disk
-          // by the time the parent reads `sessionPath`.
-          await child.session.close()
           finalResult = buildResult(false)
         },
         async (error: unknown) => {
@@ -192,7 +176,6 @@ export const subagentTool = defineTool({
           // Don't reject the `done` promise — the harness's contract is
           // "completion is a final snapshot, not a throw."
           stopReason ??= "error"
-          await child.session.close().catch(() => undefined)
           const meta = buildMeta(false)
           const message = error instanceof Error ? error.message : String(error)
           finalResult = {
@@ -201,7 +184,6 @@ export const subagentTool = defineTool({
               { text: `subagent failed: ${message}`, type: "text" },
             ],
             isError: true,
-            meta: { sessionPath },
           }
         }
       ),
