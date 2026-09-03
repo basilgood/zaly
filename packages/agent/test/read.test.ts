@@ -1,11 +1,11 @@
-import type { Message, MetaPart, TextPart, ToolContext, ToolResultPart } from "@zaly/ai"
+import type { MetaPart, TextPart } from "@zaly/ai"
 
 import { AiError } from "@zaly/ai"
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, ftruncateSync, mkdirSync, mkdtempSync, openSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "pathe"
 import { afterAll, beforeAll, describe, expect, test } from "vitest"
-import { assertFresh, readTool } from "../src/tools/read.ts"
+import { readTool } from "../src/tools/read.ts"
 
 type ReadResult = string | (TextPart | MetaPart)[]
 
@@ -127,6 +127,27 @@ describe("read tool — error paths", () => {
     await expect(callRead({ path: sub })).rejects.toMatchObject({ code: "NOT_A_FILE" })
   })
 
+  test("file over the 5MB cap → FILE_TOO_LARGE before reading any bytes", async () => {
+    // Sparse write: only seek to the end and write one byte, so the test
+    // stays cheap while stat() still reports an over-cap size.
+    const path = join(dir, "huge.txt")
+    const fd = openSync(path, "w")
+    try {
+      ftruncateSync(fd, 5 * 1024 * 1024 + 1)
+    } finally {
+      closeSync(fd)
+    }
+    const err = await callRead({ path }).catch((error: AiError) => error)
+    expect(err).toMatchObject({ code: "FILE_TOO_LARGE" })
+    expect((err as AiError).message).toMatch(/use bash/i)
+  })
+
+  test("file just under the cap reads normally", async () => {
+    const path = join(dir, "under-cap.txt")
+    writeFileSync(path, "still fine")
+    await expect(callRead({ path })).resolves.toBeDefined()
+  })
+
   test("offset past end yields empty content with a truthful slice meta", async () => {
     // Rather than erroring on overshoot, the read returns an empty text
     // part plus a `<slice>` meta surfacing the offset asked for and the
@@ -171,42 +192,4 @@ describe("read tool — error paths", () => {
   })
 })
 
-function withReadOf(path: string, mtime: number): Message<"tool"> {
-  const part: ToolResultPart = {
-    content: "",
-    id: "1",
-    meta: { kind: "read", mtime, path },
-    name: "read",
-    type: "tool-result",
-  }
-  return { content: [part], id: "m1", role: "tool" }
-}
 
-describe("trackFile / assertFresh", () => {
-  test("assertFresh throws NOT_FOUND when the path doesn't exist", () => {
-    const ctx: ToolContext = { messages: [] }
-    expect(() => assertFresh(join(dir, "missing-fresh.txt"), ctx)).toThrow(AiError)
-  })
-
-  test("assertFresh throws NOT_READ when no prior read for this path", () => {
-    const path = join(dir, "fresh-not-read.txt")
-    writeFileSync(path, "hello")
-    expect(() => assertFresh(path, { messages: [] })).toThrow(/read this file before/i)
-  })
-
-  test("assertFresh succeeds when a recent read message records the current mtime", () => {
-    const path = join(dir, "fresh-ok.txt")
-    writeFileSync(path, "hello")
-    const mtime = statSync(path).mtimeMs
-    const ctx: ToolContext = { messages: [withReadOf(path, mtime)] }
-    expect(() => assertFresh(path, ctx)).not.toThrow()
-  })
-
-  test("assertFresh throws STALE when the prior read mtime no longer matches", () => {
-    const path = join(dir, "fresh-stale.txt")
-    writeFileSync(path, "hello")
-    // Pretend we read this file with a different mtime.
-    const ctx: ToolContext = { messages: [withReadOf(path, 1)] }
-    expect(() => assertFresh(path, ctx)).toThrow(/changed since last read/)
-  })
-})

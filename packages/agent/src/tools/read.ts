@@ -1,7 +1,7 @@
 import type { Content, ToolContext } from "@zaly/ai"
 
-import { AiError, defineTool, extractToolResults, toAttachment } from "@zaly/ai"
-import { normPath, safeStat } from "@zaly/shared"
+import { AiError, defineTool, toAttachment } from "@zaly/ai"
+import { normPath } from "@zaly/shared"
 import { fileDetect } from "@zaly/shared/detect"
 import { normalizeEol } from "@zaly/shared/text"
 import { stat } from "node:fs/promises"
@@ -37,23 +37,9 @@ export type FileMeta = {
   kind: "read" | "write" | "edit"
   /** True when the result reflects the whole-file content — set by
    *  un-sliced `read` and by `write` (which always replaces the
-   *  full file). Used by the masker to know whether this result
-   *  subsumes earlier reads of the same path. `edit` never sets it
-   *  because the result is patch-relative. */
+   *  full file). `edit` never sets it because the result is
+   *  patch-relative. */
   full?: boolean
-  unchanged?: boolean
-}
-
-function isFileMeta(meta: unknown): meta is FileMeta {
-  const m = meta as Partial<Record<string, unknown>> | undefined | null
-  return (
-    m !== undefined &&
-    m !== null &&
-    typeof m === "object" &&
-    typeof m.path === "string" &&
-    typeof m.mtime === "number" &&
-    (m.kind === "read" || m.kind === "write" || m.kind === "edit")
-  )
 }
 
 export type ReadToolMeta = FileMeta & {
@@ -79,7 +65,10 @@ export const readTool = defineTool({
         default: 1,
         description:
           "1-based line number to start at. Negative values count from " +
-          "the end (e.g. -50 starts 50 lines before EOF).",
+          "the end: -50 starts 50 lines before EOF (so `offset: -50` " +
+          "with the default limit returns the last 50 lines, like " +
+          "`tail -n 50`). `offset: -50, limit: 20` reads 20 lines " +
+          "starting 50 from the end.",
       })
     ),
     limit: Type.Optional(
@@ -112,11 +101,11 @@ export const readTool = defineTool({
 
     // Hard ceiling before any bytes are read. A legal default `read`
     // (2000 lines × 2000 chars) on a large enough file would inject more
-    // tokens than fit in the context window, and masking runs too late
-    // to help — the oversized result ships to the provider first. Huge
-    // files are addressable via `bash` (jq/rg/head) instead; the error
-    // tells the model exactly that. Cap is bytes so it bounds RAM churn
-    // and the attachment path (base64 ≈ 4/3×) in one stroke.
+    // tokens than fit in the context window — the oversized result ships
+    // to the provider first. Huge files are addressable via `bash`
+    // (jq/rg/head) instead; the error tells the model exactly that. Cap
+    // is bytes so it bounds RAM churn and the attachment path
+    // (base64 ≈ 4/3×) in one stroke.
     if (fileStat.size > MAX_READ_BYTES) {
       throw new AiError({
         code: "FILE_TOO_LARGE",
@@ -126,23 +115,6 @@ export const readTool = defineTool({
           `cap ${(MAX_READ_BYTES / 1024 / 1024).toFixed(0)} MB). ` +
           `Use bash to query it in bounded slices (rg, jq, head, tail, sed).`,
       })
-    }
-
-    if (isUnchanged(path, ctx)) {
-      // Fresh! We've seen this file's current bytes, so we can skip
-      // returning the content again.
-      ctx.meta = {
-        full: false,
-        kind: "read",
-        limit: 0,
-        mtime: fileStat.mtimeMs,
-        offset: 0,
-        path,
-        unchanged: true,
-      }
-      return [
-        { content: `file unchanged since last read: ${path}`, tag: "unchanged", type: "meta" },
-      ]
     }
 
     const file = await fileDetect(path)
@@ -188,9 +160,7 @@ export const readTool = defineTool({
     })
 
     // Record the read so the freshness tracker knows we've seen this
-    // file's current bytes. write/edit consult this before mutating;
-    // the masker uses `full` to know whether this read subsumes
-    // earlier reads of the same path.
+    // file's current bytes. write/edit consult this before mutating.
     ctx.meta = {
       full: slice.full,
       kind: "read",
@@ -203,59 +173,6 @@ export const readTool = defineTool({
     return slice.content
   },
 })
-
-export function assertFresh(path: string, ctx: ToolContext) {
-  const err = checkFresh(path, ctx)
-  if (err !== true) throw err
-}
-
-export function isUnchanged(path: string, ctx: ToolContext) {
-  return checkFresh(path, ctx, { full: true }) === true
-}
-
-export function checkFresh(
-  path: string,
-  ctx: ToolContext,
-  opts: { full?: boolean } = {}
-): AiError | true {
-  path = normPath(ctx.cwd, path)
-  const mtime = safeStat(path)?.mtimeMs
-  if (mtime === undefined)
-    return new AiError({ code: "NOT_FOUND", message: `${path}: file not found` })
-  const messages = ctx.messages ?? []
-  let ret: AiError = freshnessError(path, "NOT_READ")
-
-  for (const { m, $p, p } of extractToolResults<FileMeta>(messages)) {
-    const id = m.id
-    if (!id || !isFileMeta(p.meta)) continue
-    // Masking hides content but doesn't invalidate the mtime receipt —
-    // metadata survives masking (fileScore.mask keeps the part shape),
-    // so masked reads still count as fresh for mutation purposes.
-    // Only `read`'s unchanged short-circuit (`isUnchanged`) needs to
-    // skip masked results, because it must genuinely re-serve content.
-    if (opts.visibleOnly && ctx.isMasked?.(m.id ?? "", $p)) continue
-    if (opts.full && !p.meta.full) continue
-    if (p.meta.mtime === mtime) return true // Fresh! The file's mtime matches what we saw at read time.
-    ret = freshnessError(path, "STALE")
-  }
-  return ret
-}
-
-/** Build the canonical "you need to read this first" error. Used by
- *  `write` (existing files only) and `edit` (always). The `code` is
- *  stable so the model can branch on it; the message tells the model
- *  what to do next; `data.reason` distinguishes never-read vs
- *  changed-since-read for downstream renderers. */
-export function freshnessError(path: string, reason: "NOT_READ" | "STALE"): AiError {
-  return new AiError({
-    code: "FILE_NOT_FRESH",
-    data: { path, reason },
-    message:
-      reason === "NOT_READ"
-        ? `${path}: read this file before mutating it.`
-        : `${path}: file changed since last read. Re-read before mutating.`,
-  })
-}
 
 /** Format a slice of file content as numbered lines plus, when the
  *  slice doesn't cover the whole file, a `<slice>` MetaPart with

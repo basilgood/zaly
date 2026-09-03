@@ -6,7 +6,6 @@ import { normPath } from "@zaly/shared"
 import { detectEol, normalizeEol } from "@zaly/shared/text"
 import { readFile, writeFile, stat } from "node:fs/promises"
 import { Type } from "typebox"
-import { assertFresh } from "./read.ts"
 
 export type EditTool = typeof editTool
 export type EditToolMeta = FileMeta & {
@@ -72,10 +71,6 @@ export const editTool = defineTool({
     const path = normPath(ctx.cwd, args.path)
 
     const edits = [{ newText: args.newText, oldText: args.oldText }, ...(args.edits ?? [])]
-
-    // Edit always requires freshness — the operation is content-aware,
-    // so the model must have seen the current bytes.
-    assertFresh(path, ctx)
 
     const original = await readFile(path, "utf8").catch((error: unknown) => {
       throw new AiError({

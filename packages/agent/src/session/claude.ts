@@ -520,9 +520,7 @@ function toToolResultPart(
 }
 
 /** Map Claude Code's per-tool `toolUseResult` shape onto our flat
- *  `meta` schema. mtime is unknown at import time — we set 0 so any
- *  later `assertFresh` check forces the agent to re-read before
- *  mutating, rather than trusting potentially-stale bytes. */
+ *  `meta` schema. */
 function toolUseResultMeta(
   name: string,
   result: ClaudeToolUseResult | undefined
