@@ -113,7 +113,7 @@ export function attachState(agent: Agent, state: AppState): void {
       state.step += 1
     })
     .on("status", ({ status }) => {
-      const busy = status !== "idle" && status !== "paused"
+      const busy = status !== "idle" && status !== "paused" && status !== "waiting"
       state.busy = busy
       state.status = status === "idle" ? "ready" : status
     })

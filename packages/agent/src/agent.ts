@@ -308,7 +308,8 @@ export class Agent extends Emitter<AgentEvents> {
   send(message?: Message | Message[], opts: { mode?: SendMode; run?: boolean } = {}): void {
     this.#enqueue(message ?? [], opts)
     if (opts.run === false) return
-    if (this.#status === "idle" || this.#status === "paused") void this.run()
+    if (this.#status === "idle" || this.#status === "paused" || this.#status === "waiting")
+      void this.run()
   }
 
   async useTool<T extends Tool = Tool>(
@@ -640,8 +641,8 @@ export class Agent extends Emitter<AgentEvents> {
     return message
   }
 
-  /** Resolve when the agent is in a quiescent state — `idle` or
-   *  `paused`. If a run is currently in flight (or was just kicked off
+  /** Resolve when the agent is in a quiescent state — `idle`, `waiting`,
+   *  or `paused`. If a run is currently in flight (or was just kicked off
    *  synchronously by `send` / `inject` / a wakeup), waits for it to
    *  settle before returning the final status. If no run is in flight,
    *  resolves immediately with the current status.
@@ -767,7 +768,19 @@ export class Agent extends Emitter<AgentEvents> {
       kind,
       reason: reason === undefined ? undefined : toError(reason).message,
     }
-    this.#setStatus(kind === "natural" ? "idle" : "paused")
+    // A task still in flight means the loop will be woken by `task-done`
+    // on its own — that's a wait, not a pause. Errors/aborts always need
+    // attention, so they stay `paused` regardless.
+    const waiting = this.#tasks.running().length > 0
+    const status: AgentStatus =
+      kind === "error" || kind === "aborted"
+        ? "paused"
+        : waiting
+          ? "waiting"
+          : kind === "natural"
+            ? "idle"
+            : "paused"
+    this.#setStatus(status)
     void this.emit("stop", {
       status: this.#status,
       usage: this.usage,

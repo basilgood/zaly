@@ -3,9 +3,11 @@ import type { Message, StreamEvent, TokenCount, Tool, ToolCallPart, ToolResult }
 // ── Agent event map ──────────────────────────────────────────────────────
 
 /** Status of an agent session — at most one transition per moment.
- *  `paused` covers both explicit pause and post-error states; the
- *  `lastError` field on the session disambiguates. */
-export type AgentStatus = "idle" | "streaming" | "running-tools" | "compacting" | "paused"
+ *  `paused` covers explicit pause and post-error states; the `lastError`
+ *  field on the session disambiguates. `waiting` is the auto-resuming
+ *  variant: the loop stopped but a background task is still in flight,
+ *  so the agent will resume on its own when the task completes. */
+export type AgentStatus = "idle" | "streaming" | "running-tools" | "compacting" | "waiting" | "paused"
 
 /** Reason the loop stopped this turn. Distinct from the provider's
  *  `finishReason` (which describes why one round-trip ended). */
