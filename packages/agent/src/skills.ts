@@ -1,5 +1,4 @@
-import type { MetaPart, TextPart, Tool, ToolContext } from "@zaly/ai"
-import type { Agent } from "./agent.ts"
+import type { Message, MetaPart, TextPart, Tool, ToolContext } from "@zaly/ai"
 
 import { AiError, defineTool } from "@zaly/ai"
 import { safeStatAsync } from "@zaly/shared"
@@ -181,12 +180,36 @@ export class Skills {
     ]
   }
 
-  async activate(name: string, agent: Agent) {
-    return agent.useTool<SkillTool>(
-      "skill",
-      { name },
-      `Skill "${name}" was activated by the user.`
-    )
+  /** Activate a skill by injecting its body as a user directive, mirroring
+   *  Reasonix: the skill renders to a plain user message (`# Skill: <name>` +
+   *  description + body + optional args) so the model must reply to it,
+   *  instead of a synthetic assistant tool-call + result that leaves the
+   *  model nothing to continue. Returns `{ messages }` for `agent.send`;
+   *  `undefined` when the name is unknown. */
+  async activate(name: string, args = ""): Promise<{ messages: Message[] } | undefined> {
+    const skill = this.catalog.get(name)
+    if (!skill) return
+    const task = args.trim()
+    const title = skill.name.replace(/[_-]+/g, " ")
+    const directive = task ? `${title}: ${task}` : `${title}.`
+    const header = `# Skill: ${skill.name}\n> ${skill.desc}\n\n`
+    const body = `${header}${skill.body}${task ? `\n\nArguments: ${task}` : ""}`
+    return {
+      messages: [
+        {
+          // Delivered to the model, but skipped by the window renderer
+          // (`replay.ts` filters `!m.hidden`) — the full SKILL.md body stays
+          // out of the user's view; the CLI action surfaces a notify instead.
+          hidden: true,
+          role: "user",
+          content: [
+            // A crisp lead-in the model can latch onto, keeping this a real
+            // request it must answer rather than a passive notice.
+            { type: "text", text: `${directive}\n\n${body}` },
+          ],
+        },
+      ],
+    }
   }
 
   #buildCatalogDesc(): string {

@@ -13,8 +13,10 @@ export async function loadSkills(app: App): Promise<void> {
       actions.push({
         cmd: `${app.$.skills.actionPrefix ?? "skill:"}${skill.name}`,
         desc: skill.desc,
-        fn: async () => {
-          const toolUse = await skills.activate(skill.name, app.agent)
+        args: { task: { type: "string", required: false, positional: true } },
+        fn: async ({ args }) => {
+          const task = typeof args?.task === "string" ? args.task : ""
+          const toolUse = await skills.activate(skill.name, task)
           if (!toolUse) app.notify(`Skill \`${skill.name}\` already activated.`, { level: "warn" })
           else {
             app.agent.send(toolUse.messages)
