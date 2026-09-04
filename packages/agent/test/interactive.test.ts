@@ -139,6 +139,35 @@ describe("Agent — pause / abort", () => {
     expect(agent.lastStop?.error?.name).toBe("AbortError")
   })
 
+  test("loop-detected while a task is still running lands 'waiting', not 'paused'", async () => {
+    // A tool that returns a Streamable which never completes — the task
+    // stays in flight, so the loop stop is a wait, not a pause.
+    const Slow = defineTool({
+      call: () => ({
+        poll: () => ({ running: true, content: "still running" }),
+        done: new Promise<void>(() => {}),
+        abort: () => {},
+      }),
+      name: "slow",
+      params: Type.Object({}),
+    })
+    const sameCall = (id: string) => ({ id, name: "slow" as const, params: {}, type: "tool-call" as const })
+    const model = mockModel([
+      [sameCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+    ])
+    const agent = await loadAgent({
+      messages: [{ content: "go", role: "user" }],
+      model,
+      stop: { loopConsecutive: 3 },
+      tools: [Slow],
+    })
+    agent.tasks.graceMs = 50 // promote to a background task quickly
+    expect(await agent.run()).toBe("loop-detected")
+    expect(agent.status).toBe("waiting")
+  })
+
   test("useTool after abort does not inherit the stale aborted run signal", async () => {
     const m = pendingModel()
     const signalTool = defineTool({
