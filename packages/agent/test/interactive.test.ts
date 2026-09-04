@@ -162,7 +162,7 @@ describe("Agent — pause / abort", () => {
     const agent = await loadAgent({
       messages: [{ content: "go", role: "user" }],
       model,
-      stop: { loopConsecutive: 3 },
+      stop: { loopConsecutive: 3, loopNudges: 0 },
       tools: [Slow, Add],
     })
     agent.tasks.graceMs = 50 // promote the slow call to a background task quickly

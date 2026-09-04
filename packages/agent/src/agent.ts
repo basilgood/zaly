@@ -23,7 +23,7 @@ import type { AgentOptions, ContextPressure, SendMode, StepResult, TurnResult } 
 
 import { AiError, isContextOverflow, runTool } from "@zaly/ai"
 import { Emitter, toValue, toError } from "@zaly/shared"
-import { StopPolicy } from "./stop.ts"
+import { StopPolicy, loopNudgeMessage } from "./stop.ts"
 import { Tasks, taskCompletionMessage, taskInfoPart } from "./tasks.ts"
 import { TokenUsage } from "./utils/usage.ts"
 import { uuidv7 } from "./utils/uuid.ts"
@@ -58,6 +58,9 @@ export class Agent extends Emitter<AgentEvents> {
   /** Cap on `depth` — see `AgentOptions.maxDepth`. */
   readonly maxDepth: number
   #started = false
+  /** Corrective nudges injected this run for a detected loop. Reset at
+   *  the top of `#loop()`. */
+  #loopNudges = 0
 
   #parent?: Agent
 
@@ -737,11 +740,31 @@ export class Agent extends Emitter<AgentEvents> {
     // Token totals stay sticky across resets — they're billing-style
     // displays, not per-turn caps.
     this.#stopPolicy.reset()
+    this.#loopNudges = 0
     for (let turn = 1; ; turn++) {
       void this.emit("turn-start", { turn })
       const result = await this.#turn()
       const reason = result.reason ? toError(result.reason).message : undefined
       void this.emit("turn-end", { outcome: result.kind, reason, turn })
+
+      if (result.kind === "loop-detected") {
+        // Coach-and-retry: inject a corrective system message and let the
+        // model try again. Counters persist across turns (reset only at
+        // the top of `#loop()`), so a repeat re-triggers detection and
+        // escalates; a different call breaks the loop naturally. Only
+        // halt once the nudge budget is exhausted.
+        const max = this.#opts.stop?.loopNudges ?? 2
+        if (this.#loopNudges < max) {
+          this.#loopNudges++
+          await this.session.add({
+            content: [{ text: loopNudgeMessage(this.#stopPolicy.lastLoopCall, this.#loopNudges), type: "text" }],
+            meta: { kind: "loop-nudge" },
+            role: "system",
+          })
+          continue
+        }
+        return this.#stop(result.kind, result.reason)
+      }
 
       if (result.kind === "natural") {
         // Drain follow-up queue if anything arrived during the turn.

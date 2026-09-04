@@ -1,4 +1,4 @@
-import type { Message } from "@zaly/ai"
+import type { Content, Message } from "@zaly/ai"
 
 import { defineTool, stringifyContent } from "@zaly/ai"
 import { Type } from "typebox"
@@ -301,7 +301,7 @@ describe("Agent — loop detection", () => {
     const result = await runAgent({
       messages: [{ content: "go", role: "user" }],
       model,
-      stop: { loopConsecutive: 3 },
+      stop: { loopConsecutive: 3, loopNudges: 0 },
       tools: [Add],
     })
     expect(result.stopReason).toBe("loop-detected")
@@ -334,5 +334,51 @@ describe("Agent — loop detection", () => {
       tools: [Poll],
     })
     expect(result.stopReason).toBe("natural")
+  })
+
+  test("injects a corrective nudge and lets the model break the loop", async () => {
+    // Three identical add(1,1) calls trip loopConsecutive=3 → the agent
+    // injects a loop-nudge system message and continues; the model then
+    // answers naturally instead of halting.
+    const model = mockModel([
+      [sameAddCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameAddCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameAddCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [
+        { delta: "2", type: "text-delta" },
+        { finishReason: "stop", type: "finish", usage: { input: 1, output: 1 } },
+      ],
+    ])
+    const result = await runAgent({
+      messages: [{ content: "go", role: "user" }],
+      model,
+      stop: { loopConsecutive: 3 },
+      tools: [Add],
+    })
+    expect(result.stopReason).toBe("natural")
+    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
+    expect(nudges).toHaveLength(1)
+    expect(stringifyContent(nudges[0].content as Content)).toMatch(/loop nudge 1/)
+    expect(stringifyContent(nudges[0].content as Content)).toMatch(/add/)
+  })
+
+  test("halts with loop-detected once the nudge budget is exhausted", async () => {
+    // loopNudges: 1 → one corrective nudge, then a repeat still trips
+    // detection and the run halts.
+    const model = mockModel([
+      [sameAddCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameAddCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameAddCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameAddCall("c4"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+    ])
+    const result = await runAgent({
+      messages: [{ content: "go", role: "user" }],
+      model,
+      stop: { loopConsecutive: 3, loopNudges: 1 },
+      tools: [Add],
+    })
+    expect(result.stopReason).toBe("loop-detected")
+    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
+    expect(nudges).toHaveLength(1)
   })
 })
