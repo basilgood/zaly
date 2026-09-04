@@ -49,32 +49,24 @@ export const bashTool = defineTool({
   name: "bash",
   desc:
     "Run a bash command. Returns its output once the command exits, or a " +
-    "partial snapshot if the command is still running after the harness's " +
-    "grace window — in that case the eventual result arrives as a system " +
-    "message. Its result then arrives automatically when it finishes; use " +
-    "`task_poll` to peek at output, `task_stop` to terminate one. `timeout` " +
-    "is a real kill deadline.",
+    "partial snapshot if still running after the harness's grace window " +
+    "(the result then arrives as a system message). `timeout` is a real " +
+    "kill deadline.",
   params: Type.Object({
     command: Type.String({ description: "The shell command to run, evaluated by `bash -c`." }),
     description: Type.Optional(
       Type.String({
         description:
-          "Short, human-readable description of what this command does. " +
-          "Shown to the user in the TUI alongside the command. Keep it under " +
-          "~10 words. Don't restate the command itself — describe the intent " +
-          '(e.g. "check the test suite passes", not "run bun test").',
+          "Short human-readable description of what the command does, " +
+          "shown in the TUI. Keep under ~10 words.",
       })
     ),
     max_lines: Type.Optional(
       Type.Integer({
         default: 200,
         description:
-          "Cap on lines kept inline in the result. Split as head + tail " +
-          "(half each). Lower for commands you only need pass/fail on " +
-          "(`max_lines: 20`); raise when middle output matters. Output " +
-          "above the cap is elided in the inline result, but the full " +
-          "log is always written to disk and surfaced as " +
-          "`truncated.fullOutputPath` — `read` it if you need to dig deeper.",
+          "Cap on lines kept inline in the result (head + tail). The full " +
+          "log is written to disk and surfaced as `truncated.fullOutputPath`.",
         minimum: 10,
       })
     ),
@@ -83,11 +75,7 @@ export const bashTool = defineTool({
         default: 4000,
         description:
           "Cap on estimated tokens kept inline (~4 chars each), applied " +
-          "alongside `max_lines` (whichever binds first). When output " +
-          "exceeds it, the middle is elided: first half of the budget " +
-          "from the head, second half from the tail. Raise for commands " +
-          "where the middle matters; the full log is still written to " +
-          "disk and surfaced as `truncated.fullOutputPath`.",
+          "alongside `max_lines` (whichever binds first).",
         minimum: 500,
       })
     ),

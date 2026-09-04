@@ -31,7 +31,7 @@ export const findTool = defineTool({
       Type.Union([Type.String(), Type.Array(Type.String())], {
         default: "",
         description:
-          "Filename/path glob, array of globs, or plain substring. Empty, `*`, or `**/*` lists all files.",
+          "Filename/path glob, array of globs, or plain substring.",
       })
     ),
     cwd: Type.Optional(Type.String({ description: "Directory to search from. Defaults to cwd." })),

@@ -45,10 +45,8 @@ interface BraveResponse {
 export const searchTool = defineTool({
   name: "search",
   desc:
-    "Web search optimised for agents. Returns extracted snippets from each " +
-    "source page (not just titles + URLs), so you get grounding content in " +
-    "one call. Use for fact-finding, current events, documentation lookups, " +
-    "and anything beyond your knowledge cutoff.",
+    "Web search. Returns extracted snippets from each source page (not just " +
+    "titles + URLs), so you get grounding content in one call.",
   parallel: true,
   // oxlint-disable-next-line sort-keys -- semantic param order
   params: Type.Object({

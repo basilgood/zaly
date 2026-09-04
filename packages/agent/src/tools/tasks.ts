@@ -25,9 +25,7 @@ export const taskListTool = defineTool({
   name: "task_list",
   desc:
     "List active and recently-finished tasks (running shells, subagents, " +
-    "any other long-running work the model has kicked off). Use this when " +
-    "you've lost track of an id, or to check which background work is " +
-    "still in flight.",
+    "other long-running work).",
   parallel: true,
   params: Type.Object({
     includeFinished: Type.Optional(
@@ -56,12 +54,8 @@ export const taskPollTool = defineTool({
   name: "task_poll",
   desc:
     "Read the latest incremental output from a running task. Returns " +
-    "only what's arrived since the previous `task_poll` (or since the " +
-    "task's running placeholder was first surfaced). Use when a heartbeat " +
-    "flagged a task with `*new*`, or to peek at progress on a long " +
-    "command (build, test run, tail -f). Errors if the task is already " +
-    "done (its result was injected as a system message) or has no " +
-    "streaming output.",
+    "only what's arrived since the previous `task_poll`. Errors if the " +
+    "task is already done or has no streaming output.",
   parallel: true,
   params: Type.Object({
     id: Type.String({ description: "Task id to poll." }),
@@ -82,9 +76,8 @@ export const taskPollTool = defineTool({
 export const taskStopTool = defineTool({
   name: "task_stop",
   desc:
-    "Stop a running task. Aborts the underlying work (e.g. SIGTERM " +
-    "→ SIGKILL for bash); pending tasks chained behind a stopped task get " +
-    "auto-cancelled. Idempotent — safe to call on an already-finished task.",
+    "Stop a running task. Aborts the underlying work; pending tasks " +
+    "chained behind it get auto-cancelled. Idempotent.",
   params: Type.Object({
     id: Type.String({ description: "Task id to stop." }),
   }),

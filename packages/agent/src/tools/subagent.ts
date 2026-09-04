@@ -46,10 +46,9 @@ export const subagentTool = defineTool({
   name: "subagent",
   desc:
     "Spawn a focused subagent with the same model and permissions. Use " +
-    "for tasks that benefit from a clean context window: deep code " +
-    "exploration, multi-step research, or anything where dragging the " +
-    "intermediate steps through your own context would be expensive. The " +
-    "subagent's final answer comes back as the result.",
+    "for tasks that benefit from a clean context window (deep exploration, " +
+    "multi-step research). The subagent's final answer comes back as the " +
+    "result.",
   parallel: true,
   params: Type.Object({
     description: Type.String({
@@ -60,13 +59,12 @@ export const subagentTool = defineTool({
     prompt: Type.String({
       description:
         "System prompt for the subagent — defines its role and constraints. " +
-        "The subagent does NOT inherit your system prompt; spell out what " +
-        "it needs to know.",
+        "The subagent does NOT inherit your system prompt.",
     }),
     task: Type.String({
       description:
-        "The actual task the subagent should perform, as if you were sending " +
-        "it as a user message. Be specific about the deliverable.",
+        "The task the subagent should perform, as if sent as a user " +
+        "message. Be specific about the deliverable.",
     }),
   }),
 

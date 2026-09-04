@@ -65,10 +65,7 @@ export const readTool = defineTool({
         default: 1,
         description:
           "1-based line number to start at. Negative values count from " +
-          "the end: -50 starts 50 lines before EOF (so `offset: -50` " +
-          "with the default limit returns the last 50 lines, like " +
-          "`tail -n 50`). `offset: -50, limit: 20` reads 20 lines " +
-          "starting 50 from the end.",
+          "the end (e.g. -50 starts 50 lines before EOF).",
       })
     ),
     limit: Type.Optional(

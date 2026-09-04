@@ -23,8 +23,7 @@ const DEFAULT_MAX_BODY_BYTES = 256 * 1024 // 256 KB — generous for APIs, caps 
 // oxlint-disable-next-line sort-keys
 export const fetchTool = defineTool({
   desc:
-    `Fetch a URL and return the response. HTML pages are auto-extracted to readable article markdown (title, author, body — nav/ads/scripts stripped) to keep tokens low; pass \`mode: "raw"\` to get the body as-is. JSON responses are parsed; use \`jsonpath\` (e.g. \`$.items[*].name\`) to extract a subset and minimise tokens.` +
-    `Image & PDF are returned as attachments. Best for APIs and web pages.`,
+    `Fetch a URL and return the response. HTML pages are auto-extracted to readable article markdown; pass \`mode: "raw"\` to get the body as-is. JSON responses are parsed; use \`jsonpath\` to extract a subset. Images & PDFs are returned as attachments.`,
   name: "fetch",
   parallel: true,
 
@@ -72,19 +71,14 @@ export const fetchTool = defineTool({
         default: "text",
         description:
           "`text` (default) extracts the readable article from an HTML " +
-          "page (via Defuddle) and returns it as markdown — title, author, " +
-          "and body, with nav/ads/scripts stripped. This keeps tokens low " +
-          "on web pages. `raw` returns the body as-is (e.g. to inspect " +
-          "markup or when the response isn't HTML).",
+          "page and returns it as markdown. `raw` returns the body as-is.",
       })
     ),
     match: Type.Optional(
       Type.String({
         description:
-          "Regex; when set, only lines matching it are returned. Use to " +
-          "filter a large body down to the relevant lines (e.g. `price|per " +
-          "1,000`) before it reaches context. Combined with `head` to cap " +
-          "the number of matching lines.",
+          "Regex; when set, only matching lines are returned. Combined " +
+          "with `head` to cap the number of matching lines.",
       })
     ),
     head: Type.Optional(
