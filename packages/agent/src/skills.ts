@@ -1,7 +1,6 @@
-import type { MetaPart, TextPart, Tool, ToolContext } from "@zaly/ai"
-import type { Agent } from "./agent.ts"
+import type { Message, MetaPart, TextPart, Tool, ToolContext } from "@zaly/ai"
 
-import { AiError, defineTool, extractToolResults } from "@zaly/ai"
+import { AiError, defineTool } from "@zaly/ai"
 import { safeStatAsync } from "@zaly/shared"
 import { glob } from "@zaly/shared/glob"
 import { readFile } from "node:fs/promises"
@@ -14,7 +13,6 @@ export type SkillMeta = {
   mtime: number
   desc: string
   path: string
-  unchanged?: boolean
 }
 
 export type SkillTool = Tool<{ name: string }, unknown, SkillMeta>
@@ -167,22 +165,9 @@ export class Skills {
       })
     }
 
-    // Refresh the skill entry so we have an up-to-date mtime for staleness checks in `isActivated`.
     skill = await this.#update(skill)
 
     ctx.meta = { desc: skill.desc, mtime: skill.mtime, name: skill.name, path: skill.path }
-    const activated = await this.isActivated(skill, ctx)
-    if (activated) {
-      // Already activated and fresh — no need to reload or update the tool result.
-      ctx.meta.unchanged = true
-      return [
-        {
-          content: `skill "${skill.name}" unchanged since last read: ${skill.path}`,
-          tag: "unchanged",
-          type: "meta",
-        },
-      ]
-    }
 
     const references = await listReferences(skill.dir)
     return [
@@ -195,25 +180,36 @@ export class Skills {
     ]
   }
 
-  async isActivated(skill: SkillEntry, ctx: ToolContext<SkillMeta>): Promise<boolean> {
-    const messages = ctx.messages ?? []
-    for (const { m, $p, p } of extractToolResults<SkillMeta, "skill">(messages, ["skill"])) {
-      const id = m.id
-      if (!id || !p.meta || ctx.isMasked?.(id, $p)) continue
-      if (p.meta.unchanged) continue
-      if (p.meta.name === skill.name) return p.meta.mtime === skill.mtime
+  /** Activate a skill by injecting its body as a user directive, mirroring
+   *  Reasonix: the skill renders to a plain user message (`# Skill: <name>` +
+   *  description + body + optional args) so the model must reply to it,
+   *  instead of a synthetic assistant tool-call + result that leaves the
+   *  model nothing to continue. Returns `{ messages }` for `agent.send`;
+   *  `undefined` when the name is unknown. */
+  async activate(name: string, args = ""): Promise<{ messages: Message[] } | undefined> {
+    const skill = this.catalog.get(name)
+    if (!skill) return
+    const task = args.trim()
+    const title = skill.name.replace(/[_-]+/g, " ")
+    const directive = task ? `${title}: ${task}` : `${title}.`
+    const header = `# Skill: ${skill.name}\n> ${skill.desc}\n\n`
+    const body = `${header}${skill.body}${task ? `\n\nArguments: ${task}` : ""}`
+    return {
+      messages: [
+        {
+          // Delivered to the model, but skipped by the window renderer
+          // (`replay.ts` filters `!m.hidden`) — the full SKILL.md body stays
+          // out of the user's view; the CLI action surfaces a notify instead.
+          hidden: true,
+          role: "user",
+          content: [
+            // A crisp lead-in the model can latch onto, keeping this a real
+            // request it must answer rather than a passive notice.
+            { type: "text", text: `${directive}\n\n${body}` },
+          ],
+        },
+      ],
     }
-    return false
-  }
-
-  async activate(name: string, agent: Agent) {
-    const ret = await agent.useTool<SkillTool>(
-      "skill",
-      { name },
-      `Skill "${name}" was activated by the user.`
-    )
-    if (ret.result.meta?.unchanged) return
-    return ret
   }
 
   #buildCatalogDesc(): string {
