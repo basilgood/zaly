@@ -151,19 +151,21 @@ describe("Agent — pause / abort", () => {
       name: "slow",
       params: Type.Object({}),
     })
-    const sameCall = (id: string) => ({ id, name: "slow" as const, params: {}, type: "tool-call" as const })
+    const slowCall = (id: string) => ({ id, name: "slow" as const, params: {}, type: "tool-call" as const })
+    const addCall = (id: string) => ({ id, name: "add" as const, params: { a: 1, b: 1 }, type: "tool-call" as const })
     const model = mockModel([
-      [sameCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
-      [sameCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [slowCall("s1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [addCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [addCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [addCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
     ])
     const agent = await loadAgent({
       messages: [{ content: "go", role: "user" }],
       model,
       stop: { loopConsecutive: 3 },
-      tools: [Slow],
+      tools: [Slow, Add],
     })
-    agent.tasks.graceMs = 50 // promote to a background task quickly
+    agent.tasks.graceMs = 50 // promote the slow call to a background task quickly
     expect(await agent.run()).toBe("loop-detected")
     expect(agent.status).toBe("waiting")
   })

@@ -306,4 +306,33 @@ describe("Agent — loop detection", () => {
     })
     expect(result.stopReason).toBe("loop-detected")
   })
+
+  test("identical calls with changing results are not a loop", async () => {
+    // A poll-like tool whose output changes each call (e.g. task_poll
+    // watching a task progress) — same call, different result → progress,
+    // not a loop. The loop detector must not flag it.
+    let n = 0
+    const Poll = defineTool({
+      call: () => `progress ${++n}`,
+      name: "poll",
+      params: Type.Object({}),
+    })
+    const sameCall = (id: string) => ({ id, name: "poll" as const, params: {}, type: "tool-call" as const })
+    const model = mockModel([
+      [sameCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameCall("c2"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [sameCall("c3"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
+      [
+        { delta: "done", type: "text-delta" },
+        { finishReason: "stop", type: "finish", usage: { input: 1, output: 1 } },
+      ],
+    ])
+    const result = await runAgent({
+      messages: [{ content: "go", role: "user" }],
+      model,
+      stop: { loopConsecutive: 3 },
+      tools: [Poll],
+    })
+    expect(result.stopReason).toBe("natural")
+  })
 })
