@@ -18,15 +18,19 @@ export interface StopOptions {
   maxToolErrors?: number
 
   // ── Loop detection ──────────────────────────────────────────────────
-  // Two cheap heuristics over the running tool-call history. Hash is
-  // `name + JSON.stringify(params)`; property order matters (rare false
+  // Two cheap heuristics over the running tool-call history. A call is
+  // hashed as `name + JSON.stringify(params)` plus the hash of its
+  // result — so a "loop" is the same call *and* the same output repeated.
+  // A call whose result is changing (e.g. `task_poll` watching a task
+  // progress) is progress, not a loop. Property order matters (rare false
   // negative if the model alternates key order on the same logical call,
   // accepted in exchange for a much cheaper hash). Set either limit to
   // `Infinity` to disable that arm.
 
-  /** Same `(name, params)` appearing N times in a row → loop. Catches
-   *  the most common failure mode: re-calling `read_file` with the same
-   *  path expecting different output. Default 3. */
+  /** Same `(name, params, result)` appearing N times in a row → loop.
+   *  Catches the most common failure mode: re-calling `read_file` with
+   *  the same path expecting different output, and getting the same.
+   *  Default 3. */
   loopConsecutive?: number
   /** Bounded window for duplicate detection. Default 10. */
   loopWindow?: number
@@ -54,6 +58,9 @@ export class StopPolicy {
   #steps = 0
   #consecutiveErrors = 0
   #calls: ToolCallPart[] = []
+  /** Result hash per call id — lets the loop detector tell "same call,
+   *  same output" (a loop) from "same call, changing output" (progress). */
+  #resultHashes = new Map<string, string>()
   #usage: TokenCount = { input: 0, output: 0 }
   #totalUsage: TokenCount = { input: 0, output: 0 }
 
@@ -109,6 +116,7 @@ export class StopPolicy {
       }
       case "tool-result": {
         this.#consecutiveErrors = event.result.isError ? this.#consecutiveErrors + 1 : 0
+        this.#resultHashes.set(event.call.id, safeStringify(event.result.content))
         break
       }
       case "stream-event": {
@@ -129,6 +137,7 @@ export class StopPolicy {
     this.#steps = 0
     this.#consecutiveErrors = 0
     this.#calls = []
+    this.#resultHashes.clear()
     if (opts.keepUsage === false) {
       this.#usage = { input: 0, output: 0 }
       this.#totalUsage = { input: 0, output: 0 }
@@ -169,10 +178,10 @@ export class StopPolicy {
 
     const consecutive = this.#opts.loopConsecutive ?? 3
     if (Number.isFinite(consecutive) && calls.length >= consecutive) {
-      const last = hashCall(calls[calls.length - 1])
+      const last = this.#hash(calls[calls.length - 1])
       let run = 1
       for (let i = calls.length - 2; i >= 0 && run < consecutive; i--) {
-        if (hashCall(calls[i]) === last) run++
+        if (this.#hash(calls[i]) === last) run++
         else break
       }
       if (run >= consecutive) return true
@@ -184,7 +193,7 @@ export class StopPolicy {
       const slice = calls.slice(Math.max(0, calls.length - window))
       const counts = new Map<string, number>()
       for (const call of slice) {
-        const h = hashCall(call)
+        const h = this.#hash(call)
         const next = (counts.get(h) ?? 0) + 1
         if (next >= windowRepeats) return true
         counts.set(h, next)
@@ -192,6 +201,16 @@ export class StopPolicy {
     }
 
     return false
+  }
+
+  /** Combined identity of a call: its `(name, params)` plus the hash of
+   *  the result it produced. Two calls only count as a repeat if both the
+   *  call and its output match — a poller whose result is changing is
+   *  making progress, not looping. Falls back to the call alone when no
+   *  result has been recorded yet. */
+  #hash(call: ToolCallPart): string {
+    const result = this.#resultHashes.get(call.id)
+    return result === undefined ? hashCall(call) : `${hashCall(call)}\0${result}`
   }
 }
 
