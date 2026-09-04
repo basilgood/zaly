@@ -2,7 +2,7 @@ import type { CheckResult, PermissionHandler, Rule } from "../types.ts"
 
 import { normPath, prettyPath } from "@zaly/shared"
 import ignore from "ignore"
-import { dirname, isAbsolute, relative } from "pathe"
+import { isAbsolute, relative } from "pathe"
 
 /**
  * Handler for `Rule<"read" | "write">` — one impl serves both scopes
@@ -66,15 +66,14 @@ export const fileHandler: PermissionHandler<"read" | "write"> = {
     //   - Inside a workspace: reads ride on workspace trust → allow;
     //     writes escalate → ask.
     //   - Outside any workspace: always ask, and surface a
-    //     workspace-add suggestion so the user can promote the parent
-    //     dir without composing a rule by hand.
+    //     workspace-add suggestion so the user can promote the path
+    //     itself (not its parent) without composing a rule by hand.
     if (!inWorkspace) {
-      const parent = dirname(abs)
       return {
         ask: `Allow ${verb} ${prettyPath(abs)}? (not in any workspace)`,
         reason: `${abs}: outside any workspace`,
         suggestions: [
-          { description: `add ${parent} as workspace`, kind: "workspace", path: parent },
+          { description: `add ${prettyPath(abs)} as workspace`, kind: "workspace", path: abs },
         ],
         verdict: "ask",
       }
