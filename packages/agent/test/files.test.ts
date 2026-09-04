@@ -23,7 +23,7 @@ describe("fileHandler — workspace containment", () => {
     const r = validate("read", "/etc/hosts")
     if (r.verdict === "allow") throw new Error("expected non-allow")
     expect(r.verdict).toBe("ask")
-    expect(r.suggestions?.[0]).toMatchObject({ kind: "workspace", path: "/etc" })
+    expect(r.suggestions?.[0]).toMatchObject({ kind: "workspace", path: "/etc/hosts" })
   })
 
   test("path equal to the workspace root allows (no rule body to match)", () => {
