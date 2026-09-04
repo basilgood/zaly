@@ -38,6 +38,9 @@ export interface StopOptions {
    *  Catches alternation patterns (`A B A B …`) the consecutive arm
    *  alone won't see. Default 4. */
   loopWindowRepeats?: number
+  /** How many corrective nudges to inject before halting on a detected
+   *  loop. Default 2. Set to 0 to halt immediately (current behavior). */
+  loopNudges?: number
 }
 
 /**
@@ -58,6 +61,9 @@ export class StopPolicy {
   #steps = 0
   #consecutiveErrors = 0
   #calls: ToolCallPart[] = []
+  /** The call that tripped loop detection, if any — the repeated one,
+   *  not necessarily the most recent. Set by `#detectLoop()`. */
+  #lastLoopCall?: ToolCallPart
   /** Result hash per call id — lets the loop detector tell "same call,
    *  same output" (a loop) from "same call, changing output" (progress). */
   #resultHashes = new Map<string, string>()
@@ -87,6 +93,13 @@ export class StopPolicy {
   /** Tool-call history fed to the loop detector. Read-only. */
   get calls(): readonly ToolCallPart[] {
     return this.#calls
+  }
+  /** The tool call that tripped loop detection — used to build a
+   *  corrective nudge. For the consecutive arm this is the repeated
+   *  call; for the window arm, the call that hit `loopWindowRepeats`
+   *  (which may not be the most recent call). */
+  get lastLoopCall(): ToolCallPart | undefined {
+    return this.#lastLoopCall
   }
 
   // ── Wiring ────────────────────────────────────────────────────────────
@@ -137,6 +150,7 @@ export class StopPolicy {
     this.#steps = 0
     this.#consecutiveErrors = 0
     this.#calls = []
+    this.#lastLoopCall = undefined
     this.#resultHashes.clear()
     if (opts.keepUsage === false) {
       this.#usage = { input: 0, output: 0 }
@@ -184,7 +198,10 @@ export class StopPolicy {
         if (this.#hash(calls[i]) === last) run++
         else break
       }
-      if (run >= consecutive) return true
+      if (run >= consecutive) {
+        this.#lastLoopCall = calls[calls.length - 1]
+        return true
+      }
     }
 
     const window = this.#opts.loopWindow ?? 10
@@ -195,7 +212,10 @@ export class StopPolicy {
       for (const call of slice) {
         const h = this.#hash(call)
         const next = (counts.get(h) ?? 0) + 1
-        if (next >= windowRepeats) return true
+        if (next >= windowRepeats) {
+          this.#lastLoopCall = call
+          return true
+        }
         counts.set(h, next)
       }
     }
@@ -216,4 +236,26 @@ export class StopPolicy {
 
 function hashCall(call: ToolCallPart): string {
   return `${call.name}\0${safeStringify(call.params)}`
+}
+
+/** Cap on how much of a call's params the nudge reproduces. The full
+ *  call is already in the conversation; the nudge only needs the
+ *  identifying head (command, URL, path, task). */
+const NUDGE_PARAMS_MAX = 200
+
+/** Build a corrective system message for a detected loop. `n` is the
+ *  nudge ordinal (1-based). Names the repeated call so the model can
+ *  see exactly what it's stuck on. */
+export function loopNudgeMessage(call: ToolCallPart | undefined, n: number): string {
+  const what = call ? `\`${call.name}\` (${truncate(safeStringify(call.params))})` : "the same action"
+  return (
+    `You've run ${what} repeatedly with the same result — the call you keep repeating. ` +
+    `Repeating it won't produce new information. ` +
+    `Answer the user from what you already have, or try a different command/approach. ` +
+    `Do not re-run the same call. (loop nudge ${n})`
+  )
+}
+
+function truncate(s: string, max = NUDGE_PARAMS_MAX): string {
+  return s.length <= max ? s : `${s.slice(0, max)}…`
 }
