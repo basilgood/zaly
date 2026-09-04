@@ -41,12 +41,9 @@ export const wakeupTool = defineTool({
   name: "wakeup",
   desc:
     "Schedule a one-shot wake-up of the agent loop. If `delayMs` elapses " +
-    "without anything else waking the loop (task completion, heartbeat, " +
-    "user message), you'll receive a system message with the optional " +
-    "`hint`. If something else wakes the loop first, the wakeup is " +
-    'cancelled — its hint still surfaces (with `status="cancelled"`) so ' +
-    "your reminder doesn't evaporate. Useful for polling external state " +
-    "or scheduling a return to a thought.",
+    "without anything else waking the loop, you'll receive a system " +
+    "message with the optional `hint`. If something else wakes the loop " +
+    "first, the wakeup is cancelled (its hint still surfaces).",
   parallel: true,
   params: Type.Object({
     delayMs: Type.Integer({
@@ -57,9 +54,7 @@ export const wakeupTool = defineTool({
       Type.String({
         description:
           "Short text the wakeup carries — what you wanted to remember " +
-          "to do at this point. Surfaces in the system message whether " +
-          "the wakeup fires on its own timer or gets cancelled by another " +
-          "event. Keep it concise; treat it as a TODO line, not prose.",
+          "to do. Keep it concise, like a TODO line.",
       })
     ),
   }),
