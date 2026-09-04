@@ -3,6 +3,7 @@ import type { CheckResult, PermissionHandler, Rule, Suggestion, Verdict } from "
 
 import { parseBash } from "../../utils/bash/parser.ts"
 import { TOOLS } from "../../utils/bash/tools.ts"
+import { dirname } from "pathe"
 
 /**
  * Handler for `Rule<"bash">` — evaluates a bash command line against
@@ -77,13 +78,17 @@ export const bashHandler: PermissionHandler<"bash"> = {
 
       for (const path of reads) {
         if (seg.dyn?.has(path)) {
-          segVerdict = combine(segVerdict, "ask")
-          segReason ??= `${seg.cmd}: read ${path}: dynamic path`
-          suggestions.push({
-            kind: "rule",
-            pattern: `${seg.cmd}:*`,
-            scope: "bash",
-          })
+          // Dynamic path (glob): validate the base directory through the
+          // file handler so workspace containment + read/write rules
+          // compose uniformly, instead of a bespoke ask branch that
+          // bypasses the workspace gate.
+          const r = ctx.validate("read", dirname(path))
+          segVerdict = combine(segVerdict, r.verdict)
+          if (r.verdict !== "allow") {
+            segReason ??= `${seg.cmd}: read ${path}: ${r.reason}`
+            if (r.suggestions) suggestions.push(...r.suggestions)
+          }
+          if (segVerdict === "deny") break
           continue
         }
         const r = ctx.validate("read", path)
@@ -97,13 +102,13 @@ export const bashHandler: PermissionHandler<"bash"> = {
       if (segVerdict !== "deny") {
         for (const path of writes) {
           if (seg.dyn?.has(path)) {
-            segVerdict = combine(segVerdict, "ask")
-            segReason ??= `${seg.cmd}: write ${path}: dynamic path`
-            suggestions.push({
-              kind: "rule",
-              pattern: `${seg.cmd}:*`,
-              scope: "bash",
-            })
+            const w = ctx.validate("write", dirname(path))
+            segVerdict = combine(segVerdict, w.verdict)
+            if (w.verdict !== "allow") {
+              segReason ??= `${seg.cmd}: write ${path}: ${w.reason}`
+              if (w.suggestions) suggestions.push(...w.suggestions)
+            }
+            if (segVerdict === "deny") break
             continue
           }
           const w = ctx.validate("write", path)
