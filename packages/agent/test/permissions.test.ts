@@ -288,6 +288,31 @@ describe("PermissionManager.validate('bash') — end-to-end", () => {
     expect(m.validate("bash", "echo $(whoami)").verdict).toBe("allow")
   })
 
+  test("approved command rule does not bypass workspace gate for globs", () => {
+    // `ls:*` allowed but no `read(*)`: the glob's base dir (/tmp) is
+    // outside the workspace → the file handler still asks. Command rule
+    // ≠ file access.
+    const m2 = new PermissionManager({
+      cwd,
+      rules: { allow: ["bash(ls:*)"] },
+    })
+    expect(m2.validate("bash", "ls /tmp/playwright*").verdict).toBe("ask")
+  })
+
+  test("glob inside workspace with approved command allows", () => {
+    // Base dir resolves inside cwd → file handler allows the read.
+    expect(m.validate("bash", "ls packages/*.ts").verdict).toBe("allow")
+  })
+
+  test("unapproved command with glob still asks", () => {
+    // No rule for `rm`, so the dynamic path keeps forcing ask.
+    const m2 = new PermissionManager({
+      cwd,
+      rules: { allow: ["read(*)", "write(*)"] },
+    })
+    expect(m2.validate("bash", "rm /tmp/playwright*").verdict).toBe("ask")
+  })
+
   test("redirect to /dev/null is invisible (file handler not consulted)", () => {
     expect(m.validate("bash", "ls > /dev/null 2>&1").verdict).toBe("allow")
   })
