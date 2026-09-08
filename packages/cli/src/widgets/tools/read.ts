@@ -6,8 +6,6 @@ import { prettyPath } from "@zaly/shared"
 import { memo, unwrap } from "@zaly/tui"
 import { box } from "@zaly/tui/widgets/box"
 import { code } from "@zaly/tui/widgets/code"
-import { log } from "@zaly/tui/widgets/log"
-import { show } from "@zaly/tui/widgets/show"
 
 const PREVIEW_LINE_LIMIT = 10
 
@@ -25,7 +23,6 @@ export const readRenderer: ToolRenderer<ReadTool> = {
       return p ? prettyPath(p) : (props.params?.path ?? "unknown path")
     })
 
-    const unchanged = memo(() => unwrap(props.result)?.meta?.unchanged === true)
     const title = memo(() =>
       unwrap(props.result)?.isError === true ? `${path()}  (error)` : path()
     )
@@ -34,27 +31,15 @@ export const readRenderer: ToolRenderer<ReadTool> = {
 
     return box(
       {},
-      show(
-        {
-          use: () =>
-            log({
-              content: "file unchanged since last read",
-              level: "warn",
-              visible: unchanged,
-            }),
-          when: unchanged,
-        },
-        () =>
-          code({
-            code: content,
-            limit: PREVIEW_LINE_LIMIT,
-            more: (_more, msg) => `${msg} read`,
-            numberOffset,
-            numbered: true,
-            path,
-            title,
-          })
-      )
+      code({
+        code: content,
+        limit: PREVIEW_LINE_LIMIT,
+        more: (_more, msg) => `${msg} read`,
+        numberOffset,
+        numbered: true,
+        path,
+        title,
+      })
     )
   },
 }

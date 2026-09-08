@@ -3,7 +3,6 @@ import type { ToolRenderer } from "./registry.ts"
 
 import { memo, unwrap } from "@zaly/tui"
 import { box } from "@zaly/tui/widgets/box"
-import { log } from "@zaly/tui/widgets/log"
 import { markdown } from "@zaly/tui/widgets/markdown"
 import { show } from "@zaly/tui/widgets/show"
 import { toolPreview } from "../params.ts"
@@ -20,21 +19,11 @@ export const skillRenderer: ToolRenderer<SkillTool> = {
     return toolPreview(props.call.name, props.params?.name ?? props.params)
   },
   result(props) {
-    const unchanged = memo(() => unwrap(props.result)?.meta?.unchanged === true)
     const desc = memo(() => unwrap(props.result)?.meta?.desc ?? "")
     return box(
       {},
       show(
         { when: memo(() => unwrap(props.result)) },
-        {
-          use: () =>
-            log({
-              content: "file unchanged since last read",
-              level: "warn",
-              visible: unchanged,
-            }),
-          when: unchanged,
-        },
         () => markdown(desc, { style: "muted" })
       )
     )
