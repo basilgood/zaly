@@ -45,6 +45,6 @@ export interface SessionStore {
   all?: () => Iterable<SessionNode> | AsyncIterable<SessionNode>
 
   /** Optional uuid → 1-based transcript line lookup for persisted
-   *  stores. Lets masked stubs point at the exact transcript record. */
+   *  stores. Lets consumers jump straight to the exact transcript record. */
   lineOf?: (id: string) => number | undefined
 }

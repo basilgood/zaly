@@ -63,11 +63,11 @@ export async function loadAgent(app: App): Promise<Agent> {
     agent.ctx.prompt = [
       ...base.map((p) => p.text),
       // One-time framing so the model knows its session transcript is the
-      // full, unmasked record while its in-context view may be masked or
-      // compacted for budget. Gives it a concrete recovery path for stubbed
-      // tool results (mirrors the opencode model of reading the transcript).
+      // full record while its in-context view may be compacted for budget.
+      // Gives it a concrete recovery path for summarized content (mirrors
+      // the opencode model of reading the transcript).
       sessionPath
-        ? `Your session transcript (the full, unmasked record of this conversation, including every tool call and result) is at: ${sessionPath}. Your in-context view may be masked/compacted for budget; when you need exact content that was stubbed, read that file.`
+        ? `Your session transcript (the full record of this conversation, including every tool call and result) is at: ${sessionPath}. Your in-context view may be compacted for budget; when you need exact content that was summarized, read that file.`
         : "",
     ].filter(Boolean)
   }

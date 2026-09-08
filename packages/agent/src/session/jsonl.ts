@@ -17,7 +17,7 @@ const CHUNK_SIZE = 4 * 1024 * 1024
  *
  * Line accounting: because the file is append-only, a record's 1-based
  * line number is stable for the file's lifetime. `lineOf()` maps a node
- * uuid to its line so masked stubs can point at the exact transcript
+ * uuid to its line, letting consumers jump straight to the exact transcript
  * record. The count is seeded by one cheap sequential newline scan at
  * load, advanced by each `write()`, and back-filled by the reader's
  * backward walk (which parses the full file as nodes are touched).

@@ -24,8 +24,8 @@ extended.
   browse available models, switch models mid-session, and tune reasoning effort
   without restarting zaly.
 - **Sessions that can keep going** — sessions persist and resume per workspace.
-  Inspect the exact context sent to the model, browse the message tree, compact
-  old history, and let automatic masking keep large tool results under control.
+  Inspect the exact context sent to the model, browse the message tree, and
+  compact old history to keep context under control.
 - **Built for both sides of the conversation** — zaly keeps the agent aware of
   session resumes, time, compaction, context pressure, model changes, completed
   tasks, and other runtime events. Important harness state becomes context
@@ -144,9 +144,9 @@ These formats are still evolving during alpha.
 
 ### Context window
 
-By default, masking and compaction fire relative to the model's full declared
-context. Models degrade well before their maximum, so you can keep sessions in
-a "good" zone by setting a smaller reference window:
+By default, compaction fires relative to the model's full declared context.
+Models degrade well before their maximum, so you can keep sessions in a "good"
+zone by setting a smaller reference window:
 
 ```json
 {
@@ -154,9 +154,9 @@ a "good" zone by setting a smaller reference window:
 }
 ```
 
-When set, the status line's `ctx` percentage and the masking/compaction
-pressure are computed against this window instead of the model's context.
-Unset (or `0`) to fall back to the model's full context.
+When set, the status line's `ctx` percentage and the context pressure that
+drives compaction are computed against this window instead of the model's
+full context. Unset (or `0`) to fall back to the model's context.
 
 ## 🖥️ Terminal notes
 
@@ -173,7 +173,7 @@ Unset (or `0`) to fall back to the model's full context.
 | Package                                    | Description                                                                                                      |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | [`@zaly/cli`](./packages/cli#readme)       | The `zaly` terminal app: composer, actions, sessions, providers, permissions, and TUI wiring.                    |
-| [`@zaly/agent`](./packages/agent#readme)   | Agent runtime: session loop, tools, permissions, compaction, masking, tasks, and subagents.                      |
+| [`@zaly/agent`](./packages/agent#readme)   | Agent runtime: session loop, tools, permissions, compaction, tasks, and subagents.                      |
 | [`@zaly/ai`](./packages/ai#readme)         | Provider/model abstraction: auth, streaming, content, tools, validation, and model metadata.                     |
 | [`@zaly/tui`](./packages/tui#readme)       | Terminal UI framework: stream/UI/overlay surfaces, widgets, themes, selection, clipboard, and terminal graphics. |
 | [`@zaly/config`](./packages/config#readme) | Settings, resources, packs, plugins, and configuration schemas.                                                  |
