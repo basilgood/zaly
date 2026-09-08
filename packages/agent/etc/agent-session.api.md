@@ -7,14 +7,18 @@
 import { Emitter } from '@zaly/shared';
 import { Message } from '@zaly/ai';
 import { ReasoningEffort } from '@zaly/ai';
+import { Stats } from 'node:fs';
 
 // @public (undocumented)
 export class JsonlReader<T> {
     constructor(path: string);
+    base: number;
     // (undocumented)
     close(): Promise<void>;
+    currentLine?: number;
     // (undocumented)
     next(): Promise<T | undefined>;
+    onValue(cb: (line: number, value: T) => void): void;
     // (undocumented)
     readonly path: string;
 }
@@ -28,6 +32,7 @@ export class JsonlStore implements SessionStore {
     close(): Promise<void>;
     // (undocumented)
     get(id: string): Promise<SessionNode | undefined>;
+    lineOf(id: string): number | undefined;
     static load(path: string): Promise<JsonlStore>;
     // (undocumented)
     readonly path: string;
@@ -66,6 +71,8 @@ export function resumeSession(filter: string | SessionFilter): Promise<Session |
 export class Session<T extends SessionStore = SessionStore> extends Emitter<SessionEvents> {
     protected constructor(opts: SessionInit<T>);
     add(message: Message): Promise<string>;
+    // (undocumented)
+    checkout(uuid: string): Promise<void>;
     close(): Promise<void>;
     compact(opts: {
         trigger?: "manual" | "auto";
@@ -81,6 +88,7 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     // (undocumented)
     get id(): string;
     static lastMessage(opts?: SessionOptions): Promise<Message<"user"> | undefined>;
+    lineOf(id: string): number | undefined;
     static load<T extends SessionStore = SessionStore>(opts: SessionOptions<T> & {
         store: T;
     }): Promise<Session<T>>;
@@ -101,6 +109,8 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     get root(): SessionNode | undefined;
     get settings(): SessionSettings;
     start(settings?: SessionUpdate): Promise<string | undefined>;
+    // (undocumented)
+    get started(): boolean;
     // (undocumented)
     update(settings: SessionUpdate, opts?: {
         force?: boolean;
@@ -137,18 +147,19 @@ export type SessionEvents = {
 
 // @public (undocumented)
 export type SessionFilter = {
-    id?: string; /** sessions with this workspace */
-    workspace?: string; /** glob pattern matching any workspace sessions */
+    id?: string;
+    workspace?: string;
     pattern?: string;
 };
 
 // @public (undocumented)
 export type SessionInfo = {
-    id: string; /** Absolute path to the session file. Typically within `zalyPaths.sessions`. */
-    path: string; /** Data directory used for session artifacts */
-    dir: string; /** The session's workspace containing its .zaly/ resources */
-    workspace: string; /** Populated when listing with `sort: true` */
+    id: string;
+    path: string;
+    dir: string;
+    workspace: string;
     mtime?: number;
+    stat?: Stats;
 };
 
 // @public (undocumented)
@@ -201,11 +212,12 @@ export type SessionSettings = {
 
 // @public
 export interface SessionStore {
-    all?(): Iterable<SessionNode> | AsyncIterable<SessionNode>;
-    close?(): Promise<void>;
-    get(id: string): Promise<SessionNode | undefined>;
+    all?: () => Iterable<SessionNode> | AsyncIterable<SessionNode>;
+    close?: () => Promise<void>;
+    get: (id: string) => Promise<SessionNode | undefined>;
+    lineOf?: (id: string) => number | undefined;
     readonly root: SessionNode | undefined;
-    write(node: SessionNode): Promise<void>;
+    write: (node: SessionNode) => Promise<void>;
 }
 
 // @public (undocumented)
