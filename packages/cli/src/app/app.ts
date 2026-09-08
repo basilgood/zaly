@@ -1,6 +1,6 @@
 import type { Agent } from "@zaly/agent"
 import type { ConfigManager } from "@zaly/config"
-import type { Plugin } from "@zaly/plugin"
+import type { LoadedPlugin } from "@zaly/plugin"
 import type { ActionDef, Actions, Node, Renderer } from "@zaly/tui"
 import type { Input } from "@zaly/tui/widgets/input"
 import type { Cli } from "../cli.ts"
@@ -30,7 +30,7 @@ export class App {
   #ctx: Context
   #renderer!: Renderer
   #input!: Input
-  plugins: Plugin[] = []
+  plugins: LoadedPlugin[] = []
 
   #agent?: Agent
   #exitPromise!: ReturnType<typeof Promise.withResolvers>

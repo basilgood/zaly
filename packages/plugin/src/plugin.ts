@@ -8,15 +8,15 @@ import { normPath, toError } from "@zaly/shared"
 import { basename, parse } from "node:path"
 
 export type PluginLoadResult =
-  | { ok: true; plugin: Plugin }
-  | { ok: false; error: Error; plugin: Plugin }
-export type { Plugin }
+  | { ok: true; plugin: LoadedPlugin }
+  | { ok: false; error: Error; plugin: LoadedPlugin }
+export type { LoadedPlugin }
 
 export function loadPlugin(path: string, host: PluginHost): Promise<PluginLoadResult> {
-  return Plugin.load(path, host)
+  return LoadedPlugin.load(path, host)
 }
 
-class Plugin {
+class LoadedPlugin {
   #cleanup: (() => MaybePromise)[] = []
   #path: string
   #api!: PluginApi
@@ -31,7 +31,7 @@ class Plugin {
   }
 
   static async load(path: string, host: PluginHost): Promise<PluginLoadResult> {
-    const plugin = new Plugin(path, host)
+    const plugin = new LoadedPlugin(path, host)
     const { getPluginLoader } = await import("./loader.ts")
     const { PluginApi } = await import("./api/api.ts")
     plugin.#api = new PluginApi(plugin)

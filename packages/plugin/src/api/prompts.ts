@@ -1,11 +1,11 @@
 import type { AnyPrompt, Prompt, PromptCollection } from "@zaly/agent"
 import type { Collection } from "@zaly/shared/collection"
-import type { Plugin } from "../plugin.ts"
+import type { LoadedPlugin } from "../plugin.ts"
 
 export class PromptsApi implements Collection<AnyPrompt[], Prompt[], Prompt> {
-  #plugin: Plugin
+  #plugin: LoadedPlugin
 
-  constructor(plugin: Plugin) {
+  constructor(plugin: LoadedPlugin) {
     this.#plugin = plugin
   }
 

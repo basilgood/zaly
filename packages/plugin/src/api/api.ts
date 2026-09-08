@@ -1,4 +1,4 @@
-import type { Plugin } from "../plugin.ts"
+import type { LoadedPlugin } from "../plugin.ts"
 
 import { AgentApi } from "./agent.ts"
 import { EventsApi } from "./events.ts"
@@ -8,7 +8,7 @@ import { ToolsApi } from "./tools.ts"
 import { UiApi } from "./ui.ts"
 
 export class PluginApi {
-  #plugin: Plugin
+  #plugin: LoadedPlugin
   #events?: EventsApi
   #agent?: AgentApi
   #model?: ModelApi
@@ -16,7 +16,7 @@ export class PluginApi {
   #prompts?: PromptsApi
   #ui?: UiApi
 
-  constructor(plugin: Plugin) {
+  constructor(plugin: LoadedPlugin) {
     this.#plugin = plugin
   }
 
