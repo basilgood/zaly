@@ -1,7 +1,6 @@
 import type { AnyTool, ToolCollection } from "@zaly/agent"
-import type { StaticOf, Tool, ToolDef } from "@zaly/ai"
+import type { Tool, ToolDef } from "@zaly/ai"
 import type { Collection } from "@zaly/shared/collection"
-import type { Static, TObject, TSchema } from "typebox/type"
 import type { LoadedPlugin } from "../plugin.ts"
 
 import { defineTool } from "@zaly/ai"
@@ -33,9 +32,7 @@ export class ToolsApi implements Collection<AnyTool[], AnyTool[], ToolDef> {
     return this.#tools.list()
   }
 
-  register<Params extends TObject, Result extends TSchema = TSchema, Meta extends object = object>(
-    def: ToolDef<Params, Result, Meta>
-  ): Tool<Static<Params>, StaticOf<Result>, Meta> {
+  register(def: ToolDef): Tool {
     const ret = defineTool(def)
     this.#plugin.cleanup(this.#tools.register(ret))
     return ret
