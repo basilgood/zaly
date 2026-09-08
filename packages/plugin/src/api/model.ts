@@ -1,15 +1,15 @@
 import type { Model, ModelFilter, ModelOpts, ModelProvider, ModelSpec } from "@zaly/ai"
 import type { Collection } from "@zaly/shared/collection"
-import type { Plugin } from "../plugin.ts"
+import type { LoadedPlugin } from "../plugin.ts"
 
 export class ModelApi implements Collection<
   Model | undefined,
   Promise<ModelSpec[]>,
   ModelProvider
 > {
-  #plugin: Plugin
+  #plugin: LoadedPlugin
 
-  constructor(plugin: Plugin) {
+  constructor(plugin: LoadedPlugin) {
     this.#plugin = plugin
   }
 

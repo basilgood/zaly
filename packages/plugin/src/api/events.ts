@@ -2,7 +2,7 @@ import type { AgentContextEvents, AgentEvents, AgentStatus, AgentStop } from "@z
 import type { Session } from "@zaly/agent/session"
 import type { Message, Model, ReasoningEffort, TokenCount, Tool } from "@zaly/ai"
 import type { EmitArgs, EventMap, EventOf, EventType, ListenerCtx } from "@zaly/shared"
-import type { Plugin } from "../plugin.ts"
+import type { LoadedPlugin } from "../plugin.ts"
 import type { PluginApi } from "./api.ts"
 
 import { Emitter } from "@zaly/shared"
@@ -55,10 +55,10 @@ const ANY = Symbol("any")
 
 export class EventsApi {
   #emitter: Events = new Emitter<PluginEvents>()
-  #plugin: Plugin
+  #plugin: LoadedPlugin
   #wrapped = new Map<ApiEventType | typeof ANY, WeakMap<Listener<any>, WrappedListener<any>>>()
 
-  constructor(plugin: Plugin) {
+  constructor(plugin: LoadedPlugin) {
     this.#plugin = plugin
     this.#emitter.onEmitError = (error) => plugin.logger.error("Error in event litener:", error)
     this.#attach()

@@ -1,6 +1,6 @@
 import type { AgentStatus, AgentStop, PromptLoader, SendMode } from "@zaly/agent"
 import type { Content, Message, TokenCount } from "@zaly/ai"
-import type { Plugin } from "../plugin.ts"
+import type { LoadedPlugin } from "../plugin.ts"
 
 import { toLoader } from "../plugin.ts"
 
@@ -9,9 +9,9 @@ function isMessage(obj: unknown): obj is Message {
 }
 
 export class AgentApi {
-  #plugin: Plugin
+  #plugin: LoadedPlugin
 
-  constructor(plugin: Plugin) {
+  constructor(plugin: LoadedPlugin) {
     this.#plugin = plugin
   }
 

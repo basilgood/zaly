@@ -4,14 +4,14 @@ import type { PickOpts } from "@zaly/tui/services/picker"
 import type { ThemeLoader } from "@zaly/tui/themes"
 import type { Overlay } from "@zaly/tui/widgets/overlay"
 import type { Option } from "@zaly/tui/widgets/select"
-import type { Plugin } from "../plugin.ts"
+import type { LoadedPlugin } from "../plugin.ts"
 
 import { toLoader } from "../plugin.ts"
 
 export class UiApi {
-  #plugin: Plugin
+  #plugin: LoadedPlugin
 
-  constructor(plugin: Plugin) {
+  constructor(plugin: LoadedPlugin) {
     this.#plugin = plugin
   }
 
