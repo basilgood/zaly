@@ -1,10 +1,12 @@
 // oxlint-disable import/no-named-as-default-member
-import type { ModelsJson } from "@zaly/ai";
 export const ModelsSchema = {
+    version: "3.0",
     components: {
         schemas: {
-            "ModelsJson-o1": {
+            "ModelsJson.o1": {
                 type: "object",
+                properties: {},
+                required: [],
                 additionalProperties: {
                     type: "object",
                     properties: {
@@ -49,9 +51,9 @@ export const ModelsSchema = {
                         source: {
                             type: "string",
                             "enum": [
+                                "models.dev",
                                 "builtin",
                                 "custom",
-                                "models.dev",
                                 "models.json"
                             ]
                         },
@@ -59,12 +61,14 @@ export const ModelsSchema = {
                             type: "boolean"
                         }
                     },
-                    required: [],
-                    additionalProperties: false
+                    required: []
                 }
             },
             Recordstringstring: {
                 type: "object",
+                properties: {},
+                required: [],
+                description: "Construct a type with a set of properties K of type T",
                 additionalProperties: {
                     type: "string"
                 }
@@ -75,9 +79,9 @@ export const ModelsSchema = {
                     maxTokensField: {
                         type: "string",
                         "enum": [
+                            "max_tokens",
                             "max_completion_tokens",
                             "max_output_tokens",
-                            "max_tokens",
                             "none"
                         ],
                         description: "Which wire field carries the max-output-tokens cap, per adapter\nfamily.\n\nChat Completions:\n  - `\"max_tokens\"`            \u2014 legacy, most third-parties\n  - `\"max_completion_tokens\"` \u2014 newer OpenAI + reasoning models\n\nResponses:\n  - `\"max_output_tokens\"`     \u2014 public Responses API default\n\nAll families:\n  - `\"none\"` \u2014 suppress entirely. Codex backend rejects any\n    max-tokens field with `Unsupported parameter`."
@@ -85,12 +89,12 @@ export const ModelsSchema = {
                     thinkingFormat: {
                         type: "string",
                         "enum": [
-                            "deepseek",
                             "openai",
                             "openrouter",
+                            "deepseek",
+                            "zai",
                             "qwen",
-                            "qwen-chat-template",
-                            "zai"
+                            "qwen-chat-template"
                         ],
                         description: "How the provider expects reasoning / thinking requests shaped.\n- `\"openai\"`              \u2192 `reasoning_effort: \"minimal|low|medium|high\"`\n- `\"openrouter\"`          \u2192 `reasoning: { effort }`\n- `\"deepseek\"`            \u2192 `thinking: { type: \"enabled\" }` + `reasoning_effort`\n- `\"zai\"` / `\"qwen\"`      \u2192 top-level `enable_thinking: boolean`\n- `\"qwen-chat-template\"`  \u2192 `chat_template_kwargs.enable_thinking`"
                     },
@@ -99,13 +103,13 @@ export const ModelsSchema = {
                         items: {
                             type: "string",
                             "enum": [
-                                "high",
-                                "low",
-                                "max",
-                                "medium",
-                                "minimal",
                                 "off",
-                                "xhigh"
+                                "minimal",
+                                "low",
+                                "medium",
+                                "high",
+                                "xhigh",
+                                "max"
                             ]
                         },
                         description: "Which effort levels this model actually accepts. Adapter clamps\nunsupported values to the nearest supported one \u2014 `\"xhigh\"` on\npre-GPT-5.4 \u2192 `\"high\"`, `\"minimal\"` on o1/o3 \u2192 `\"low\"`. Unset\nmeans any level is accepted."
@@ -149,10 +153,10 @@ export const ModelsSchema = {
                     responsesReasoningSummary: {
                         type: "string",
                         "enum": [
+                            "off",
                             "auto",
                             "concise",
-                            "detailed",
-                            "off"
+                            "detailed"
                         ],
                         description: "Reasoning summary verbosity for the Responses API. Default\n`\"auto\"`. `\"off\"` disables the summary stream."
                     },
@@ -168,7 +172,6 @@ export const ModelsSchema = {
                     }
                 },
                 required: [],
-                additionalProperties: false,
                 description: "Provider-specific wire quirks that \"OpenAI compatibility\" doesn't\nactually cover. Each field names an axis of variation with a\ntyped union of known shapes; adapters read these and dispatch.\n\nPopulated by `getModel` from `assets/quirks.json` \u2014 provider-level\ndefaults overlaid with per-model overrides. Users can further\noverride per-model via `addModels` or per-call via the request's\n`quirks` field.\n\nAdd new axes here as they surface; start minimal."
             },
             ModelInfo: {
@@ -230,7 +233,7 @@ export const ModelsSchema = {
                         description: "Model weights are publicly released. Informational."
                     },
                     cost: {
-                        $ref: "#/components/schemas/Cost__type",
+                        $ref: "#/components/schemas/Costcontext_over_200kCostundefined",
                         description: "Pricing per million tokens. `context_over_200k` is the higher\ntier some providers bill for prompts over 200K tokens."
                     },
                     tool_call: {
@@ -241,21 +244,20 @@ export const ModelsSchema = {
                 required: [
                     "id"
                 ],
-                additionalProperties: false,
                 description: "Metadata for one model. One-to-one with the models.dev `Model`\nschema. Loaded lazily per-provider via `getModel(id)` or eagerly\nvia `listModels()`.\n\nRuntime invariant enforced by the catalog (not by the TS type):\nwhen `reasoning === false`, `cost.reasoning` is absent."
             },
             Modality: {
                 type: "string",
                 "enum": [
+                    "text",
                     "audio",
                     "image",
-                    "pdf",
-                    "text",
-                    "video"
+                    "video",
+                    "pdf"
                 ],
                 description: "Input/output modality."
             },
-            Cost__type: {
+            Costcontext_over_200kCostundefined: {
                 type: "object",
                 properties: {
                     input: {
@@ -286,8 +288,7 @@ export const ModelsSchema = {
                 required: [
                     "input",
                     "output"
-                ],
-                additionalProperties: false
+                ]
             },
             Cost: {
                 type: "object",
@@ -318,22 +319,20 @@ export const ModelsSchema = {
                     "input",
                     "output"
                 ],
-                additionalProperties: false,
                 description: "Per-tier cost. Values are USD per **million tokens** (models.dev\nconvention). Optional fields are only present when the provider\npublishes distinct pricing for that axis."
             }
         }
     },
     schema: {
         type: "array",
-        minItems: 1,
-        maxItems: 1,
         items: {
             oneOf: [
                 {
-                    $ref: "#/components/schemas/ModelsJson-o1"
+                    $ref: "#/components/schemas/ModelsJson.o1"
                 }
             ]
-        }
-    },
-    version: "3.0"
-};
+        },
+        minItems: 1,
+        maxItems: 1
+    }
+} as import("typia").IJsonSchemaUnit<"3.0">;

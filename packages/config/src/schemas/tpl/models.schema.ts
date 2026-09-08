@@ -1,5 +1,4 @@
 // oxlint-disable import/no-named-as-default-member
-
 import type { ModelsJson } from "@zaly/ai"
 
 import typia from "typia"
