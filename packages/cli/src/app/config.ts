@@ -132,11 +132,11 @@ export async function pickSessionTree(
     text: name,
   }))
   await app.pick({
-    details: "Toggle tools to enable or disable them.",
+    details: "Toggle which sections are shown in the session tree.",
     items,
     maxHeight: app.$.ui.listHeight,
     multi: true,
-    title: "Pick Tools",
+    title: "Session Tree Sections",
   })
   return items
     .filter((item) => item.enabled && item.name)
