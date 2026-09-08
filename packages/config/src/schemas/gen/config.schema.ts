@@ -1,3 +1,5 @@
+// @ts-ignore -- type used only in the typia generic; inlined away by codegen
+import type { TypiaConfig } from "../../types.ts";
 export const ConfigSchema = {
     version: "3.0",
     components: {
@@ -24,7 +26,7 @@ export const ConfigSchema = {
                     },
                     contextWindow: {
                         type: "number",
-                        description: "Context window (tokens) used as the reference for masking and\ncompaction pressure. When unset, the model's full declared context\nis used. Set it to keep the session inside a \"good\" window \u2014 models\ndegrade well before their max, so firing compaction relative to a\nsmaller window avoids the hallucination zone."
+                        description: "Context window (tokens) used as the reference for compaction\npressure. When unset, the model's full declared context\nis used. Set it to keep the session inside a \"good\" window \u2014 models\ndegrade well before their max, so firing compaction relative to a\nsmaller window avoids the hallucination zone."
                     },
                     tools: {
                         type: "array",
@@ -137,6 +139,10 @@ export const ConfigSchema = {
                                 type: "number",
                                 description: "Existing messages up to this many tokens will be preserved in the context"
                             },
+                            model: {
+                                type: "string",
+                                description: "Model id used to generate the compaction summary. Falls back to\nthe session model when unset. Summarization is mechanical\nextraction \u2014 a cheaper model does it nearly as well."
+                            },
                             reasoning: {
                                 type: "string",
                                 "enum": [
@@ -157,32 +163,6 @@ export const ConfigSchema = {
                             threshold: {
                                 type: "number",
                                 description: "Threshold for automatic compaction."
-                            }
-                        },
-                        required: []
-                    },
-                    masking: {
-                        type: "object",
-                        properties: {
-                            enabled: {
-                                type: "boolean",
-                                description: "Whether to enable masking. Defaults to true."
-                            },
-                            minTokens: {
-                                type: "number",
-                                description: "Don't mask tool-result parts whose original content is shorter\nthan this (estimated tokens). Skips tiny \"ok\"-style success\nmessages where the stub would be larger than the original.\nDoesn't apply to attachments (always worth masking)."
-                            },
-                            keepTurns: {
-                                type: "number",
-                                description: "How many turns to keep in the tail of the conversation, regardless\nof score. Defaults to 20."
-                            },
-                            delta: {
-                                type: "number",
-                                description: "How far above the target ratio to trigger a new masking pass.\nDefaults to 0.25 (25%)."
-                            },
-                            target: {
-                                type: "number",
-                                description: "Target ratio of used/limit tokens to reach by masking. Defaults to 0.5 (50%)."
                             }
                         },
                         required: []
