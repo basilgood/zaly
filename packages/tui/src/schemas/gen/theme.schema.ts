@@ -1,5 +1,3 @@
-// @ts-ignore -- type used only in the typia generic; inlined away by codegen
-import type { Theme } from "../../themes/types.ts";
 export const ThemeSchema = {
     version: "3.0",
     components: {

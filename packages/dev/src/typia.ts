@@ -1,7 +1,7 @@
 // oxlint-disable no-await-in-loop
 import type { IJsonSchemaUnit } from "typia"
 
-import { globSync, mkdirSync, statSync, writeFileSync } from "node:fs"
+import { globSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { basename, join } from "pathe"
 
 export function hasSchemas(root: string) {
@@ -23,6 +23,20 @@ export async function compile(root: string) {
     project: join(root, "tsconfig.json"),
   })
   console.log("✔  Typia validators generated")
+  // typia copies the template's type imports into the output, but the
+  // schema generic is inlined away, leaving them unused. Drop them so
+  // the generated file is self-contained (and tsc's noUnusedLocals
+  // stays quiet) — and survives regeneration.
+  for (const file of globSync(join(root, "src/schemas/gen/*.schema.ts"))) {
+    dropTypeImports(file)
+  }
+}
+
+/** Remove `import type { … } from "…"` lines from generated schema files. */
+function dropTypeImports(file: string) {
+  const src = readFileSync(file, "utf8")
+  const next = src.replace(/^import type \{ [^}]+ \} from "[^"]+"(?:;)?\n/gm, "")
+  if (next !== src) writeFileSync(file, next)
 }
 
 export async function generateJsonSchemas(root: string) {

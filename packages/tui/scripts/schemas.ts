@@ -1,7 +1,7 @@
 import type { IJsonSchemaUnit } from "typia"
 
 import { TypiaGenerator } from "@typia/transform"
-import { globSync, mkdirSync, writeFileSync } from "node:fs"
+import { globSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, join } from "node:path"
 
 // Step 1: Generate typia validation code from templates
@@ -12,6 +12,15 @@ await TypiaGenerator.build({
   project: "tsconfig.json",
 })
 console.log("✔  Typia validators generated")
+// typia copies the template's type imports into the output, but the
+// schema generic is inlined away, leaving them unused. Drop them so
+// the generated file is self-contained (and tsc's noUnusedLocals
+// stays quiet) — and survives regeneration.
+for (const file of globSync("src/schemas/gen/*.schema.ts")) {
+  const src = readFileSync(file, "utf8")
+  const next = src.replace(/^import type \{ [^}]+ \} from "[^"]+"(?:;)?\n/gm, "")
+  if (next !== src) writeFileSync(file, next)
+}
 
 // Convert $ref paths from OpenAPI 3.0 to JSON Schema draft-07 definitions,
 // and split any schema node that carries both `pattern` and `enum` into a

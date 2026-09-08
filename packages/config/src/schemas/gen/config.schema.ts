@@ -1,5 +1,3 @@
-// @ts-ignore -- type used only in the typia generic; inlined away by codegen
-import type { TypiaConfig } from "../../types.ts";
 export const ConfigSchema = {
     version: "3.0",
     components: {
