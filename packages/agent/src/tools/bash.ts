@@ -67,7 +67,6 @@ export const bashTool = defineTool({
         description:
           "Cap on lines kept inline in the result (head + tail). The full " +
           "log is written to disk and surfaced as `truncated.fullOutputPath`.",
-        minimum: 10,
       })
     ),
     max_tokens: Type.Optional(
