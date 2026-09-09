@@ -5,7 +5,7 @@ import type { DoneTaskInfo, TaskMeta, TasksEvents } from "../src/tasks.ts"
 import { AiError, defineTool } from "@zaly/ai"
 import { Type } from "typebox"
 import { afterEach, describe, expect, test } from "vitest"
-import { taskCompletionMessage, taskInfoPart, Tasks } from "../src/tasks.ts"
+import { heartbeatMessage, taskCompletionMessage, taskInfoPart, Tasks } from "../src/tasks.ts"
 
 // ── Test helpers ─────────────────────────────────────────────────────────
 
@@ -609,7 +609,7 @@ describe("taskInfoPart", () => {
 })
 
 describe("taskCompletionMessage", () => {
-  test("renders a system message with header MetaPart + body text", () => {
+  test("renders a hidden user message: lead-in text + task MetaPart + body", () => {
     const done: DoneTaskInfo = {
       desc: "demo",
       durationMs: 12,
@@ -619,10 +619,11 @@ describe("taskCompletionMessage", () => {
       type: "sync",
     }
     const msg = taskCompletionMessage(done)
-    expect(msg.role).toBe("system")
     if (typeof msg.content === "string") throw new Error("expected parts")
-    const text = msg.content.find((p) => p.type === "text")
-    expect(text?.type === "text" ? text.text : "").toBe("the body")
+    const texts = msg.content.filter((p) => p.type === "text")
+    expect(texts[0].text).toContain('Background task "t-2" (sync) finished')
+    expect(texts[texts.length - 1].text).toBe("the body")
+    expect(msg.content.some((p) => p.type === "meta" && p.tag === "task")).toBe(true)
   })
 
   test("omits the body part when result content is empty", () => {
@@ -636,7 +637,32 @@ describe("taskCompletionMessage", () => {
     }
     const msg = taskCompletionMessage(done)
     if (typeof msg.content === "string") throw new Error("expected parts")
-    expect(msg.content.filter((p) => p.type === "text")).toHaveLength(0)
+    expect(msg.content.filter((p) => p.type === "text")).toHaveLength(1)
+  })
+})
+
+const textOf = (msg: ReturnType<typeof heartbeatMessage>): string => {
+  if (typeof msg.content === "string") throw new Error("expected parts")
+  const t = msg.content.find((p) => p.type === "text")
+  return t?.type === "text" ? t.text : ""
+}
+
+describe("heartbeatMessage", () => {
+  const base = { desc: "demo", id: "t-9", type: "bash" } as const
+
+  test("commands task_poll for tasks with new output", () => {
+    const msg = heartbeatMessage([{ ...base, elapsedMs: 5000, hasNewOutput: true, status: "running" }])
+    expect(textOf(msg)).toContain('call task_poll with id "t-9"')
+  })
+
+  test("status line for running tasks, queued line for pending", () => {
+    const msg = heartbeatMessage([
+      { ...base, elapsedMs: 5000, status: "running" },
+      { ...base, id: "t-10", elapsedMs: 0, status: "pending", waitingFor: "t-9" },
+    ])
+    const text = textOf(msg)
+    expect(text).toContain("- task t-9 (bash) still running (5s elapsed)")
+    expect(text).toContain("- task t-10 (bash) queued behind t-9")
   })
 })
 

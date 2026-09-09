@@ -24,7 +24,7 @@ import type { AgentOptions, ContextPressure, SendMode, StepResult, TurnResult } 
 import { AiError, isContextOverflow, runTool } from "@zaly/ai"
 import { Emitter, toValue, toError } from "@zaly/shared"
 import { StopPolicy, loopNudgeMessage } from "./stop.ts"
-import { Tasks, taskCompletionMessage, taskInfoPart } from "./tasks.ts"
+import { Tasks, heartbeatMessage, taskCompletionMessage } from "./tasks.ts"
 import { TokenUsage } from "./utils/usage.ts"
 import { uuidv7 } from "./utils/uuid.ts"
 
@@ -108,21 +108,20 @@ export class Agent extends Emitter<AgentEvents> {
     this.#tasks.$tools = async () => this.tools
     this.#tasks.heartbeatMs = opts.heartbeatMs
     this.#tasks.onEmitError = (error) => opts.logger?.child("tasks").error(error)
-    // Post-round task completions inject a system message into the next
-    // step, surfacing the result to the model. Round-internal completions
-    // are folded into the round's returned parts and don't fire here.
+    // Post-round task completions are delivered as a user message — a
+    // request the model must answer, not a system notice it would
+    // ignore. Round-internal completions are folded into the round's
+    // returned parts and don't fire here.
     this.#tasks.on("task-done", ({ task }) => {
       this.send(taskCompletionMessage(task))
     })
     // Heartbeats keep the agent loop alive while long-running tasks are
-    // in flight. Each pulse injects a small system note listing what's
-    // still going. Tasks with incremental output ready to read get a
-    // `*new*` marker so the model knows to call `task_poll` if it cares.
+    // in flight. Each pulse is a user message: tasks with unread output
+    // get an explicit `task_poll` command, the rest a status line. The
+    // skills activation fix proved the pattern — models answer requests,
+    // they ignore system notices.
     this.#tasks.on("heartbeat", ({ running }) => {
-      this.send({
-        content: [{ content: [taskInfoPart(running)], tag: "heartbeat", type: "meta" }],
-        role: "system",
-      })
+      this.send(heartbeatMessage(running))
     })
 
     this.#stopPolicy = new StopPolicy(opts.stop)

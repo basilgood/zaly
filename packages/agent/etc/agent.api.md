@@ -440,6 +440,9 @@ readonly tool: () => PermissionHandler<"tool">;
 readonly write: () => PermissionHandler<"read" | "write">;
 }>;
 
+// @public
+export function heartbeatMessage(running: readonly TaskInfo[]): Message<"user">;
+
 // @public (undocumented)
 export function isUuidv7(s: string): boolean;
 
@@ -698,7 +701,7 @@ export type Suggestion = {
 };
 
 // @public
-export function taskCompletionMessage(task: DoneTaskInfo): Message<"system">;
+export function taskCompletionMessage(task: DoneTaskInfo): Message<"user">;
 
 // @public
 export type TaskInfo = {

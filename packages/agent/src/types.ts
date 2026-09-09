@@ -210,9 +210,10 @@ export interface AgentOptions extends CollectOptions {
   swarm?: Swarm
 
   /** Heartbeat interval (ms) for the Tasks registry. While at least one
-   *  task is pending or running, the agent injects a `<heartbeat>` system
-   *  message at this cadence so the model sees what's still going and
-   *  the loop stays alive. Leave undefined to disable. Tune for the
+   *  task is pending or running, the agent injects a hidden user message
+   *  at this cadence — a status line per task, plus a `task_poll` command
+   *  for any task with new output — so the model sees what's still going
+   *  and the loop stays alive. Leave undefined to disable. Tune for the
    *  workload — interactive sessions often want 30s; batch / autonomous
    *  runs may want 5m. */
   heartbeatMs?: number

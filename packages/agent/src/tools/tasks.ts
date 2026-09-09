@@ -1,4 +1,4 @@
-import type { ToolContext } from "@zaly/ai"
+import type { ContentPart, ToolContext } from "@zaly/ai"
 import type { Tasks } from "../tasks.ts"
 
 import { defineTool, AiError } from "@zaly/ai"
@@ -12,9 +12,10 @@ import { taskInfoPart } from "../tasks.ts"
  *  - `task_stop`: abort a running task. Idempotent.
  *
  * "Wait for a task" is intentionally absent — heartbeats keep the loop
- * alive while tasks run, and `task-done` injects the final result as a
- * system message automatically. If the model wants explicit polling
- * cadence on something specific, it schedules a `wakeup` instead.
+ * alive while tasks run, and `task-done` delivers the final result as a
+ * hidden user message (a request the model must answer) automatically.
+ * If the model wants explicit polling cadence on something specific, it
+ * schedules a `wakeup` instead.
  *
  * Permission gating, when wired up, is the harness's concern; these
  * tools are intentionally thin so the policy lives one layer up.
@@ -68,7 +69,21 @@ export const taskPollTool = defineTool({
     // MetaParts (bash's `<shell>`, etc.), so the model sees status +
     // incremental output in one go. Returning content directly avoids
     // the JSON-stringify path normalize would take on a ToolResult shape.
-    return snap.content
+    if (!snap.running) return snap.content
+    // Without direction, models "wait" by running `sleep` via bash to
+    // pace re-polls. The heartbeat/task-done wake means they never have
+    // to: end the turn and the next output arrives as a message.
+    const note: ContentPart = {
+      text:
+        "Task is still running. End your turn — you'll be woken automatically " +
+        "when it has new output or completes. Don't sleep or poll in a loop.",
+      type: "text",
+    }
+    const base =
+      typeof snap.content === "string"
+        ? [{ text: snap.content, type: "text" as const }]
+        : snap.content
+    return [...base, note]
   },
 })
 

@@ -130,7 +130,8 @@ interface InternalTask {
  *
  * Completions during a round are folded into the returned parts and do
  * NOT fire `task-done`. Completions afterward fire normally — the agent
- * listens and injects a system message into the next step.
+ * delivers the result to the model as a user message (a request it must
+ * answer; system notices get ignored).
  */
 export class Tasks extends Emitter<TasksEvents> {
   readonly #map = new Map<string, InternalTask>()
@@ -218,7 +219,7 @@ export class Tasks extends Emitter<TasksEvents> {
       throw new AiError({
         code: "TASK_DONE",
         data: { id },
-        message: `task "${id}" has already completed; its result was injected as a system message`,
+        message: `task "${id}" has already completed; its result was delivered as a message when it finished`,
       })
     }
     if (!t.streamable) {
@@ -655,17 +656,18 @@ export class Tasks extends Emitter<TasksEvents> {
     // and append a `<task>` MetaPart with an explicit "still running"
     // hint. Without the hint, models tend to treat partial output as a
     // final answer and respond prematurely; with it they see the state
-    // structurally and know the final result will arrive as a later
-    // system message. Tagged `<task>` for symmetry with the pending /
+    // structurally and know they'll be woken with new output or the
+    // final result. Tagged `<task>` for symmetry with the pending /
     // task_list / heartbeat / task-done entries — same shape everywhere
     // a task surfaces.
     const snap = task.streamable?.poll()
     const baseContent = partialContentFrom(snap)
     const trailer: MetaPart = {
       content:
-        "Task is still running. Partial output above. The final result " +
-        "will arrive as a system message when the task completes; you " +
-        "do not need to poll. Continue with other work or wait.",
+        "Task is still running. Partial output above. Call task_poll with " +
+        "this task id to collect new output, then end your turn — you'll " +
+        "be woken automatically when it has new output or completes. " +
+        "Don't sleep or poll in a loop.",
       data: {
         ...toTaskInfo(task),
       },
@@ -755,11 +757,11 @@ function sleep(ms: number): Promise<void> {
 }
 
 /** Render an array of `TaskInfo` as a `<tasks>` MetaPart for the model
- *  (heartbeat pulses and `task_list`). Each task lands as one line of
- *  JSON. The `result` field on done tasks is stripped — listing should
- *  give an inventory, not historical output (the result was already
- *  injected as a system message at task-done time, and re-shipping it
- *  on every heartbeat / list call would be a token bomb). */
+ *  (`task_list` and the pending placeholder). Each task lands as one
+ *  line of JSON. The `result` field on done tasks is stripped — listing
+ *  should give an inventory, not historical output (the result was
+ *  already delivered as a message at task-done time, and re-shipping it
+ *  on every list call would be a token bomb). */
 export function taskInfoPart(info: readonly TaskInfo[]): MetaPart {
   if (info.length === 0) return { data: "no active tasks", tag: "tasks", type: "meta" }
   const data = info.map((t) => safeStringify(t, omitResult)).join("\n")
@@ -801,14 +803,11 @@ function toTaskInfo(task: InternalTask): TaskInfo {
   }
 }
 
-/** Format a finished task as the parts of a system inject. Layout:
+/** Format a finished task as the parts of a wake message. Layout:
  *
+ *    Background task "t1" (bash) finished. Respond to its result.
  *    <task>{id, type, desc, status: "done", durationMs}</task>
  *    {result body}
- *
- *  The header is the standard `TaskInfo`-shaped JSON so consumers
- *  (model, TUI) can parse it the same way they parse `task_list` and
- *  heartbeat output — same shape everywhere a task surfaces.
  *
  *  The body comes straight from `result.content`. For errors, that
  *  already includes the `<error>{code, message, ...}</error>` MetaPart
@@ -817,23 +816,61 @@ function toTaskInfo(task: InternalTask): TaskInfo {
  *  errors — the structured tag and human body ride along with the
  *  result content for any tool failure, anywhere.
  *
- *  System messages can't carry attachments, so any image/pdf/etc. in
- *  the result degrades to a `[image]` placeholder via
- *  `stringifyContent` — best-effort, model still sees *something* was
- *  there. */
+ *  Messages can't carry attachments, so any image/pdf/etc. in the
+ *  result degrades to a `[image]` placeholder via `stringifyContent` —
+ *  best-effort, model still sees *something* was there. */
 function formatTaskCompletion(task: DoneTaskInfo): (TextPart | MetaPart)[] {
   const { result, ...header } = task
-  const parts: (TextPart | MetaPart)[] = [{ data: header, tag: "task", type: "meta" }]
+  const parts: (TextPart | MetaPart)[] = [
+    {
+      text: `Background task "${task.id}" (${task.type}) finished. Respond to its result.`,
+      type: "text",
+    },
+    { data: header, tag: "task", type: "meta" },
+  ]
   const bodyText = stringifyContent(result.content)
   if (bodyText !== "") parts.push({ text: bodyText, type: "text" })
   return parts
 }
 
-/** Build an `inject`-ready system message for a finished task. */
-export function taskCompletionMessage(task: DoneTaskInfo): Message<"system"> {
+/** Build a wake message for a finished task. Delivered as a user
+ *  message — a request the model must answer. The same lesson as the
+ *  skills activation fix: models respond to requests; system notices
+ *  get ignored (which is where the empty-turn roulette came from). */
+export function taskCompletionMessage(task: DoneTaskInfo): Message<"user"> {
   return {
     content: formatTaskCompletion(task),
+    hidden: true,
     meta: { kind: "task", taskId: task.id },
-    role: "system",
+    role: "user",
+  }
+}
+
+/** Build the periodic heartbeat wake for active tasks, as a user
+ *  message. Tasks with unread output get an explicit `task_poll`
+ *  command; the rest get a status line. A request the model must
+ *  answer — never a system notice. */
+export function heartbeatMessage(running: readonly TaskInfo[]): Message<"user"> {
+  const lines = running.map((t) => {
+    if (t.status === "running" && t.hasNewOutput) {
+      return `- task ${t.id} (${t.type}) has new output — call task_poll with id "${t.id}" to collect it`
+    }
+    if (t.status === "running") {
+      return `- task ${t.id} (${t.type}) still running (${Math.max(1, Math.round(t.elapsedMs / 1000))}s elapsed)`
+    }
+    if (t.status === "pending") {
+      return `- task ${t.id} (${t.type}) queued behind ${t.waitingFor}`
+    }
+    return `- task ${t.id} (${t.type}) finished`
+  })
+  return {
+    content: [
+      {
+        text: `Background tasks are active. Collect new output with task_poll as it arrives.\n${lines.join("\n")}`,
+        type: "text",
+      },
+    ],
+    hidden: true,
+    role: "user",
   }
 }
