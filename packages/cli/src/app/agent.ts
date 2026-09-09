@@ -32,6 +32,9 @@ export async function loadAgent(app: App): Promise<Agent> {
     compaction: () => app.$.compaction,
     contextLimit: settings.contextWindow,
     cwd,
+    // Arm the task heartbeat. Without it a model that ends its turn to
+    // wait on a background task is never woken — silent until task-done.
+    heartbeatMs: 30_000,
     loadModel: async (id) => {
       // Load the model using the proper model registry and auth manager
       const models = await ctx.models()

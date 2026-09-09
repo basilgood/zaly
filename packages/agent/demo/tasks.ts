@@ -6,7 +6,7 @@
  * Each section runs a real interaction against the real `Tasks` registry
  * (with `bashTool`, `task_list`, `task_poll`, `task_stop`) and prints the
  * exact text the model would receive — i.e. tool-result content after
- * `transformMeta` + `stringifyContent`, and system injects after the
+ * `transformMeta` + `stringifyContent`, and hidden messages after the
  * same flattening.
  *
  * Run from repo root:
@@ -19,7 +19,7 @@ import type { Message, ToolCallPart, ToolContext, ToolResultPart } from "@zaly/a
 import type { TaskInfo, TaskMeta } from "../src/tasks.ts"
 
 import { stringifyContent, transformMeta } from "@zaly/ai"
-import { taskCompletionMessage, taskInfoPart, Tasks } from "../src/tasks.ts"
+import { taskCompletionMessage, heartbeatMessage, Tasks } from "../src/tasks.ts"
 import { bashTool } from "../src/tools/bash.ts"
 import { taskListTool, taskPollTool, taskStopTool } from "../src/tools/tasks.ts"
 import { uuidv7 } from "../src/utils/uuid.ts"
@@ -40,7 +40,7 @@ function note(msg: string): void {
   console.log(`${DIM}${msg}${RESET}`)
 }
 
-function showSystemMessage(msg: Message<"system">, label: string): void {
+function showSystemMessage(msg: Message<"system" | "user">, label: string): void {
   console.log(`${DIM}── ${label} ──${RESET}`)
   // Same path the provider adapter takes: meta → text via transformMeta,
   // then join via stringifyContent. What lands on the wire is what the
@@ -54,12 +54,8 @@ function showToolResult(part: ToolResultPart, label = "tool message"): void {
 }
 
 function showHeartbeat(running: readonly TaskInfo[]): void {
-  // Mirrors agent.ts heartbeat handler — same MetaPart envelope.
-  const msg: Message<"system"> = {
-    content: [{ content: [taskInfoPart(running)], tag: "heartbeat", type: "meta" }],
-    role: "system",
-  }
-  showSystemMessage(msg, "heartbeat inject")
+  // Mirrors agent.ts heartbeat handler — same hidden user message.
+  showSystemMessage(heartbeatMessage(running), "heartbeat message")
 }
 
 function call(name: string, params: unknown): ToolCallPart {
@@ -104,7 +100,7 @@ const TOOLS = [bashTool, taskListTool, taskPollTool, taskStopTool]
   tasks.$tools = TOOLS
   tasks.graceMs = 500
 
-  let completion: Message<"system"> | undefined
+  let completion: Message<"system" | "user"> | undefined
   tasks.on("task-done", ({ task }) => {
     completion = taskCompletionMessage(task)
   })
@@ -123,8 +119,8 @@ const TOOLS = [bashTool, taskListTool, taskPollTool, taskStopTool]
 
   await sleep(1500)
   console.log()
-  if (completion) showSystemMessage(completion, "task-done inject (1s later)")
-  note("\n→ The completion arrives as a separate system message in the next step.")
+  if (completion) showSystemMessage(completion, "task-done message (1s later)")
+  note("\n→ The completion arrives as a separate hidden user message in the next step.")
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -137,7 +133,7 @@ const TOOLS = [bashTool, taskListTool, taskPollTool, taskStopTool]
   tasks.$tools = TOOLS
   tasks.graceMs = 2000
 
-  let completion: Message<"system"> | undefined
+  let completion: Message<"system" | "user"> | undefined
   tasks.on("task-done", ({ task }) => {
     completion = taskCompletionMessage(task)
   })
@@ -176,7 +172,7 @@ const TOOLS = [bashTool, taskListTool, taskPollTool, taskStopTool]
   tasks.$tools = TOOLS
   tasks.graceMs = 400
 
-  const completions: Message<"system">[] = []
+  const completions: Message<"system" | "user">[] = []
   tasks.on("task-done", ({ task }) => {
     completions.push(taskCompletionMessage(task))
   })
@@ -203,9 +199,9 @@ const TOOLS = [bashTool, taskListTool, taskPollTool, taskStopTool]
   await sleep(1500)
   for (const c of completions) {
     console.log()
-    showSystemMessage(c, `task-done inject`)
+    showSystemMessage(c, `task-done message`)
   }
-  note(`\n→ Both completions arrive as system messages, in order.`)
+  note(`\n→ Both completions arrive as hidden user messages, in order.`)
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -321,7 +317,7 @@ const TOOLS = [bashTool, taskListTool, taskPollTool, taskStopTool]
   const hint = "check git status after install"
 
   // Case A: wakeup fires on its own
-  const fired: Message<"system"> = {
+  const fired: Message<"system" | "user"> = {
     content: [{ data: { hint, id }, tag: "wakeup", type: "meta" }],
     role: "system",
   }
@@ -329,7 +325,7 @@ const TOOLS = [bashTool, taskListTool, taskPollTool, taskStopTool]
 
   // Case B: wakeup cancelled because task-done woke the loop first
   console.log()
-  const cancelled: Message<"system"> = {
+  const cancelled: Message<"system" | "user"> = {
     content: [{ data: { hint, id, status: "cancelled" }, tag: "wakeup", type: "meta" }],
     role: "system",
   }
