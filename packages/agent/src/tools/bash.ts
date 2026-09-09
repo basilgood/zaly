@@ -75,7 +75,6 @@ export const bashTool = defineTool({
           "above the cap is elided in the inline result, but the full " +
           "log is always written to disk and surfaced as " +
           "`truncated.fullOutputPath` — `read` it if you need to dig deeper.",
-        minimum: 10,
       })
     ),
     max_tokens: Type.Optional(
