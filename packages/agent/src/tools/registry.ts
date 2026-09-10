@@ -27,6 +27,8 @@ const builtin = {
   edit: () => import("./edit.ts" as string).then((m) => m.editTool as Tool),
   fetch: () => import("./fetch.ts" as string).then((m) => m.fetchTool as Tool),
   find: () => import("./find.ts" as string).then((m) => m.findTool as Tool),
+  gh_fetch: () => import("./gh-fetch.ts" as string).then((m) => m.ghTool as Tool),
+  gh_run: () => import("./gh-run.ts" as string).then((m) => m.ghRunTool as Tool),
   grep: () => import("./grep.ts" as string).then((m) => m.grepTool as Tool),
   read: () => import("./read.ts" as string).then((m) => m.readTool as Tool),
   search: () => import("./search.ts" as string).then((m) => m.searchTool as Tool),

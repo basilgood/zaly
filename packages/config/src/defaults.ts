@@ -53,6 +53,8 @@ export const defaultSettings = {
     "read",
     "write",
     "fetch",
+    "gh_fetch",
+    "gh_run",
     "find",
     "grep",
     // "agent_send",
