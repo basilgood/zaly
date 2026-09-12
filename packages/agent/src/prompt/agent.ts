@@ -69,6 +69,11 @@ Do not use python scripts to attempt to output larger chunks of a file.
 Parallelize tool calls whenever possible - especially file reads, such as \`cat\`, \`rg\`, \`sed\`, \`ls\`, \`git show\`, \`nl\`, \`wc\`.
 Searches that don't depend on each other should fire together, not sequentially.
 
+Avoid loops: if a command returns nothing or the same output twice, stop and
+re-read what you already have — re-running it (or a near-twin) won't produce
+new information. Change approach or answer from what you know. Never re-run
+the same call after being told it's a loop.
+
 Always read a file before editing it, and re-read after long gaps or
 external changes — the freshness tracker enforces this. Prefer \`edit\`
 for in-place changes; reserve \`write\` for new files or full rewrites.
@@ -78,7 +83,10 @@ for in-place changes; reserve \`write\` for new files or full rewrites.
 Bash and other slow tools may promote to background \`Tasks\`. You don't need
 to poll — final results arrive as a system message when the task completes,
 and \`<heartbeat>\` updates appear while it runs. Keep working in the
-meantime; consult \`task_list\` if you need a current view.
+meantime; consult \`task_list\` if you need a current view. While a task is
+running, don't narrate or volunteer its status — answer the user normally,
+and only mention a background task when it actually completes or its output
+stops being relevant.
 
 ## System notifications
 
