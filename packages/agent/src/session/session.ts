@@ -1,6 +1,7 @@
 import type { Message } from "@zaly/ai"
 import type { SessionStore } from "./store.ts"
 import type {
+  MaskCheckpoint,
   PartialNode,
   SessionEvents,
   SessionInit,
@@ -132,6 +133,12 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     return this.#view.messages
   }
 
+  /** Last mask checkpoint on the active chain, if any. The masker reads
+   *  it to rebuild the identical projection after a restart. */
+  get maskCheckpoint(): MaskCheckpoint | undefined {
+    return this.#view.maskCheckpoint
+  }
+
   get id(): string {
     return this.#id
   }
@@ -260,6 +267,14 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     return compactUuid
   }
 
+  /** Record a mask checkpoint: the last message included in the mask
+   *  projection and the hysteresis threshold that triggered the pass.
+   *  Persisted so a restarted masker rebuilds the same projection. */
+  async addMaskCheckpoint(opts: MaskCheckpoint): Promise<string> {
+    this.#view.maskCheckpoint = opts
+    return this.#commit({ ...opts, type: "mask-checkpoint" })
+  }
+
   async checkout(uuid: string): Promise<void> {
     if (this.#closed) throw new Error("Session is closed")
     this.#head = uuid
@@ -369,6 +384,7 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     let limit = opts.limit ?? Infinity
     let compact: SessionNode<"compact"> | undefined
     const messageNodes: SessionNode<"message">[] = []
+    let maskCheckpoint: SessionNode<"mask-checkpoint"> | undefined
 
     // Walk backward from the head until we hit a compact or the start, collecting nodes.
     while (cursor) {
@@ -377,6 +393,8 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
       if (!node || (node.type === "message" && messageNodes.length + 1 > limit)) break
       cursor = node.parentUuid
       reverse.push(node)
+      // Keep track of the last mask-checkpoint, until we hit a compaction.
+      if (node.type === "mask-checkpoint" && !compact && !maskCheckpoint) maskCheckpoint = node
       if (node.type === "message") messageNodes.push(node)
       if (node.type === "compact" && (opts.active ?? true)) {
         if (compact) break // stop at the first compact
@@ -426,6 +444,7 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
 
     return {
       compact,
+      maskCheckpoint,
       messages: messages.toReversed(),
       nodes,
       settings,

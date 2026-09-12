@@ -48,6 +48,12 @@ export function listSessions(opts?: SessionListOpts): Promise<SessionInfo[]>;
 // @public (undocumented)
 export function loadSession(opts?: Partial<SessionInfo>): Promise<Session>;
 
+// @public (undocumented)
+export type MaskCheckpoint = {
+    messageId: string;
+    threshold: number;
+};
+
 // @public
 export class MemoryStore implements SessionStore {
     constructor(nodes?: Iterable<SessionNode>);
@@ -71,6 +77,7 @@ export function resumeSession(filter: string | SessionFilter): Promise<Session |
 export class Session<T extends SessionStore = SessionStore> extends Emitter<SessionEvents> {
     protected constructor(opts: SessionInit<T>);
     add(message: Message): Promise<string>;
+    addMaskCheckpoint(opts: MaskCheckpoint): Promise<string>;
     // (undocumented)
     checkout(uuid: string): Promise<void>;
     close(): Promise<void>;
@@ -98,6 +105,7 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     }): Promise<Session<JsonlStore>>;
     // (undocumented)
     static load(opts?: SessionOptions & {}): Promise<Session<MemoryStore>>;
+    get maskCheckpoint(): MaskCheckpoint | undefined;
     get messages(): readonly Message[];
     node(id?: string | Message): Promise<(SessionNodeView & {
         type: "message";
@@ -228,6 +236,7 @@ export type SessionView = {
     messages: Message[];
     nodes: Map<string, SessionNodeView>;
     compact?: SessionNode<"compact">;
+    maskCheckpoint?: MaskCheckpoint;
 };
 
 // (No @packageDocumentation comment for this package)

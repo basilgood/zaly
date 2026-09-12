@@ -55,6 +55,12 @@ export class Compaction {
   async compact(pressure: ContextPressure): Promise<void> {
     const { session } = this.#agent
 
+    // The summary is built from RAW history — masked stubs would starve
+    // it of facts. The masker is only reset below: its decisions (and
+    // hysteresis threshold) describe a pre-compact history that no
+    // longer exists.
+    const masker = await this.#agent.ctx.masker()
+
     const messages = session.messages
 
     const now = performance.now()
@@ -105,6 +111,7 @@ export class Compaction {
       tail: tail.length,
       trigger: this.#opts.trigger,
     })
+    masker?.reset()
   }
 
   async #summarize(message: Message<"user">): Promise<string> {

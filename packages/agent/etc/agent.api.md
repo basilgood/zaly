@@ -25,6 +25,7 @@ import { Model } from '@zaly/ai';
 import { ParamsOf } from '@zaly/ai';
 import { ReasoningEffort } from '@zaly/ai';
 import { Registry } from '@zaly/shared/registry';
+import { Role } from '@zaly/ai';
 import { StreamEvent } from '@zaly/ai';
 import { StreamOptions } from '@zaly/ai';
 import { TokenCount as TokenCount_2 } from '@zaly/ai';
@@ -119,6 +120,8 @@ export class AgentContext extends Emitter<AgentContextEvents> {
     // (undocumented)
     get cwd(): string;
     set cwd(c: string);
+    // (undocumented)
+    masker(): Promise<Masker | undefined>;
     // (undocumented)
     get messages(): readonly Message[];
     // (undocumented)
@@ -250,6 +253,7 @@ export interface AgentOptions extends CollectOptions {
     // (undocumented)
     loadModel?: (id: string) => Promise<Model>;
     logger?: Logger;
+    mask?: MaybeGetter<MaskerOptions>;
     maxDepth?: number;
     messages?: Message[];
     // (undocumented)
@@ -366,6 +370,46 @@ export function createAgent(opts: AgentOptions): Promise<Agent>;
 export function createAgentContext(opts: AgentOptions): Promise<AgentContext>;
 
 // @public
+export type Digest = {
+    tool: string;
+    tokens: number;
+    firstLine?: string;
+    transcriptLine?: number;
+    path?: string;
+    kind?: "read" | "write" | "edit";
+    full?: boolean;
+    range?: DigestRange;
+    mtime?: number;
+    changed?: boolean;
+    missing?: boolean;
+    status?: string;
+    code?: number;
+    killReason?: string;
+    fullPath?: string;
+    totalLines?: number;
+    truncated?: boolean;
+    mime?: string;
+    url?: string;
+    stop?: string;
+};
+
+// @public
+export function digestOf(part: AnyPart, opts?: DigestOptions): Digest;
+
+// @public (undocumented)
+export type DigestOptions = {
+    transcriptLine?: number;
+    stat?: (path: string) => number | undefined;
+};
+
+// @public
+export type DigestRange = {
+    from: number;
+    to: number;
+    total?: number;
+};
+
+// @public
 export type DoneTaskInfo = Extract<TaskInfo, {
     status: "done";
 }>;
@@ -378,6 +422,12 @@ export type EditToolMeta = FileMeta & {
     original: string;
     content: string;
 };
+
+// @public
+export const ELIDED_TAG = "elided";
+
+// @public
+export function elidedOf(part: AnyPart, opts?: DigestOptions): MetaPart;
 
 // @public (undocumented)
 export function estimatePart(p: AnyPart): TokenCount;
@@ -442,6 +492,9 @@ readonly write: () => PermissionHandler<"read" | "write">;
 
 // @public
 export function heartbeatMessage(running: readonly TaskInfo[]): Message<"user">;
+
+// @public
+export function isElided(part: AnyPart): boolean;
 
 // @public (undocumented)
 export function isUuidv7(s: string): boolean;
