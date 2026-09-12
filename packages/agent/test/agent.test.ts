@@ -402,7 +402,7 @@ describe("Agent — loop detection", () => {
 
   test("injects a corrective nudge and lets the model break the loop", async () => {
     // Three identical add(1,1) calls trip loopConsecutive=3 → the agent
-    // injects a loop-nudge system message and continues; the model then
+    // injects a loop-nudge user message and continues; the model then
     // answers naturally instead of halting.
     const model = mockModel([
       [sameAddCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
@@ -420,7 +420,7 @@ describe("Agent — loop detection", () => {
       tools: [Add],
     })
     expect(result.stopReason).toBe("natural")
-    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
+    const nudges = result.messages.filter((m) => m.role === "user" && m.meta?.kind === "loop-nudge")
     expect(nudges).toHaveLength(1)
     expect(stringifyContent(nudges[0].content as Content)).toMatch(/loop nudge 1/)
     expect(stringifyContent(nudges[0].content as Content)).toMatch(/add/)
@@ -442,7 +442,7 @@ describe("Agent — loop detection", () => {
       tools: [Add],
     })
     expect(result.stopReason).toBe("loop-detected")
-    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
+    const nudges = result.messages.filter((m) => m.role === "user" && m.meta?.kind === "loop-nudge")
     expect(nudges).toHaveLength(1)
   })
 })

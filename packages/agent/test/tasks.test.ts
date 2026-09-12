@@ -442,6 +442,29 @@ describe("Tasks.pollOutput / hasNewOutput", () => {
     await flush()
   })
 
+  test("pollOutput throttles a rapid no-op re-poll but allows new output", async () => {
+    const tasks = new Tasks()
+    tasks.graceMs = GRACE
+    const ctrl = makeStreamable()
+    ctrl.setPartial("partial")
+    tasks.$tools = [streamableTool({ produce: () => ctrl.streamable })]
+    await tasks.run([callOf("stream")], {})
+    const id = tasks.running()[0].id
+
+    // First poll passes through and advances the cursor.
+    expect(tasks.pollOutput(id).content).toBe("partial")
+    // A second no-new poll within the interval is short-circuited.
+    const throttled = tasks.pollOutput(id)
+    expect(throttled.running).toBe(true)
+    expect(throttled.content).toMatch(/Nothing new since your last poll/)
+
+    // New output bypasses the throttle, even when rapid.
+    ctrl.setHasNew(true)
+    expect(tasks.pollOutput(id).content).not.toMatch(/Nothing new since/)
+    ctrl.finish()
+    await flush()
+  })
+
   test("hasNewOutput: false for unknown / done / no-streamable; reflects hasNew()", async () => {
     const tasks = new Tasks()
     tasks.graceMs = GRACE

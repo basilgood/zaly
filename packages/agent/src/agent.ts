@@ -121,6 +121,10 @@ export class Agent extends Emitter<AgentEvents> {
     // skills activation fix proved the pattern — models answer requests,
     // they ignore system notices.
     this.#tasks.on("heartbeat", ({ running }) => {
+      // Only wake when there's *new output* to collect. A task like
+      // `sleep` emits nothing until it completes, so a 30s status poll
+      // would just churn turns with no signal — let `task-done` wake it.
+      if (!running.some((t) => t.status === "running" && t.hasNewOutput)) return
       this.send(heartbeatMessage(running))
     })
 
@@ -584,7 +588,7 @@ export class Agent extends Emitter<AgentEvents> {
       if (!tool) continue
       try {
         call.params = (await tool.validator.cleanParams(call.params)) ?? call.params
-      } catch {}
+      } catch { }
     }
     return calls
   }
@@ -748,18 +752,22 @@ export class Agent extends Emitter<AgentEvents> {
       void this.emit("turn-end", { outcome: result.kind, reason, turn })
 
       if (result.kind === "loop-detected") {
-        // Coach-and-retry: inject a corrective system message and let the
-        // model try again. Counters persist across turns (reset only at
-        // the top of `#loop()`), so a repeat re-triggers detection and
-        // escalates; a different call breaks the loop naturally. Only
-        // halt once the nudge budget is exhausted.
+        // Coach-and-retry: inject a corrective message and let the model
+        // try again. Delivered as a hidden USER message — models ignore
+        // system notices (same lesson as the wake/skills fixes), so a
+        // system nudge would sit unread and the loop would keep spinning.
+        // Counters persist across turns
+        // (reset only at the top of `#loop()`), so a repeat re-triggers
+        // detection and escalates; a different call breaks the loop
+        // naturally. Only halt once the nudge budget is exhausted.
         const max = this.#opts.stop?.loopNudges ?? 2
         if (this.#loopNudges < max) {
           this.#loopNudges++
           await this.session.add({
             content: [{ text: loopNudgeMessage(this.#stopPolicy.lastLoopCall, this.#loopNudges), type: "text" }],
+            hidden: true,
             meta: { kind: "loop-nudge" },
-            role: "system",
+            role: "user",
           })
           continue
         }
@@ -886,10 +894,11 @@ export class Agent extends Emitter<AgentEvents> {
   }
 }
 
-/** True when an assistant message carries no text and no tool calls —
- *  a degenerate turn that would serialize to empty/null content on the
- *  wire. Used to avoid persisting such turns (see `#step`). */
+/** True when an assistant message carries no content parts — a degenerate
+ *  turn that would serialize to empty/null content on the wire. Text,
+ *  `reasoning`, and tool-call parts are all real content; only a part-less
+ *  message is dropped (see `#step`). */
 function isEmptyAssistant(message: Message<"assistant">): boolean {
   if (typeof message.content === "string") return message.content.trim() === ""
-  return message.content.every((p) => p.type !== "text" && p.type !== "tool-call")
+  return message.content.length === 0
 }

@@ -472,6 +472,40 @@ export function formatFileUsage(files: FileUsage[]): string;
 export function formatTokenStats(s: TokenStats, indent?: number): string;
 
 // @public (undocumented)
+export type GhRunTool = typeof ghRunTool;
+
+// @public (undocumented)
+export type GhRunToolMeta = {
+    code: number;
+    durationMs: number;
+    mode: string;
+    ok: boolean;
+    truncated?: {
+        bytes: number;
+        hint: string;
+        lines: number;
+    };
+    url: string;
+};
+
+// @public (undocumented)
+export type GhTool = typeof ghTool;
+
+// @public (undocumented)
+export type GhToolMeta = {
+    code: number;
+    durationMs: number;
+    mode: string;
+    ok: boolean;
+    truncated?: {
+        bytes: number;
+        hint: string;
+        lines: number;
+    };
+    url: string;
+};
+
+// @public (undocumented)
 export type GrepTool = typeof grepTool;
 
 // @public (undocumented)
@@ -807,6 +841,7 @@ export class Tasks extends Emitter<TasksEvents> {
     set heartbeatMs(value: number | undefined);
     info(): readonly TaskInfo[];
     killAll(): Promise<void>;
+    minPollIntervalMs: number;
     pollOutput(id: string): ToolResult & {
         running: boolean;
     };
@@ -918,6 +953,8 @@ readonly bash: () => Promise<Tool<unknown, unknown, object>>;
 readonly edit: () => Promise<Tool<unknown, unknown, object>>;
 readonly fetch: () => Promise<Tool<unknown, unknown, object>>;
 readonly find: () => Promise<Tool<unknown, unknown, object>>;
+readonly gh_fetch: () => Promise<Tool<unknown, unknown, object>>;
+readonly gh_run: () => Promise<Tool<unknown, unknown, object>>;
 readonly grep: () => Promise<Tool<unknown, unknown, object>>;
 readonly read: () => Promise<Tool<unknown, unknown, object>>;
 readonly search: () => Promise<Tool<unknown, unknown, object>>;

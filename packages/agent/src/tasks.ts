@@ -112,6 +112,10 @@ interface InternalTask {
   /** Stashed call so a pending task can be restarted once its
    *  dependency completes. */
   pending?: { tool: Tool; call: ToolCallPart; ctx: ToolContext }
+  /** Wallclock of the most recent completed `pollOutput` call. Used to
+   *  throttle rapid no-op polls of the same task (a runaway model would
+   *  otherwise flood the window with "still running" bubbles every second). */
+  lastPollAt?: number
 }
 
 /**
@@ -136,6 +140,11 @@ interface InternalTask {
 export class Tasks extends Emitter<TasksEvents> {
   readonly #map = new Map<string, InternalTask>()
   graceMs = DEFAULT_GRACE_MS
+  /** Minimum wallclock gap between two `poll()` calls on the SAME task
+   *  that both report no new output. Tighter than this is treated as a
+   *  no-op re-poll and short-circuited (see `pollOutput`). Set `0` to
+   *  disable throttling. */
+  minPollIntervalMs = 30_000
 
   #tools: (() => Promise<readonly Tool[]>) | Tool[] = []
 
@@ -231,6 +240,24 @@ export class Tasks extends Emitter<TasksEvents> {
           `whose result is delivered all-at-once when complete`,
       })
     }
+    // Throttle rapid no-op polls of the same task: if the previous poll
+    // was recent AND the streamable has nothing new, short-circuit before
+    // advancing the cursor — a non-cooperating model gets a firm stop
+    // instead of an endless stream of identical "still running" bubbles.
+    const now = Date.now()
+    const sinceLast = t.lastPollAt === undefined ? Infinity : now - t.lastPollAt
+    const hasNew = t.streamable.hasNew?.() ?? false
+    if (this.minPollIntervalMs > 0 && sinceLast < this.minPollIntervalMs && !hasNew) {
+      return {
+        content:
+          `Nothing new since your last poll (${Math.max(1, Math.round(sinceLast / 1000))}s ago) — ` +
+          "the task is still running. Don't poll again until you're woken; " +
+          "end your turn and its result arrives automatically on completion.",
+        isError: false,
+        running: true,
+      }
+    }
+    t.lastPollAt = now
     return t.streamable.poll()
   }
 
