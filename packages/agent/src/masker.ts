@@ -4,7 +4,8 @@ import type { Agent } from "./agent.ts"
 import type { MsgPart } from "./context/scoring.ts"
 import type { Session } from "./session/session.ts"
 
-import { toValue } from "@zaly/shared"
+import { safeStat, toValue } from "@zaly/shared"
+import { elidedOf } from "./context/digest.ts"
 import { ContextScoring } from "./context/scoring.ts"
 import { estimatePart, tokenStats } from "./context/tokens.ts"
 
@@ -44,11 +45,15 @@ const defaults = {
 
 /** In-place mask projection for the request stream.
  *
- *  The masker replaces low-value parts with stable stubs to keep the
- *  projected request within budget. A scoring pass ranks maskable parts
- *  by recency, repeated-use shadowing, and per-policy weights; the budget
- *  pass masks from lowest score upward until the target is reached or no
- *  useful candidates remain.
+ *  The masker replaces low-value parts with `<elided>` digest stubs to
+ *  keep the projected request within budget. A scoring pass ranks
+ *  maskable parts by recency, repeated-use shadowing, and per-policy
+ *  weights; the budget pass masks from lowest score upward until the
+ *  target is reached or no useful candidates remain.
+ *
+ *  Stubs are facts-only digests (path, range, mtime, exit code, status,
+ *  transcript line) derived at mask time — the model sees *what* was
+ *  elided, never an instruction to re-fetch it.
  *
  *  Masking intentionally happens rarely because it changes historical
  *  bytes and busts prefix cache. The first pass after startup/session
@@ -148,7 +153,9 @@ export class Masker {
     }
 
     // If the current pressure ratio exceeds the threshold, rebuild the mask decisions.
-    if (resolved.ratio >= this.#threshold || resolved.force) {
+    const threshold = this.#threshold ?? this.#opts.target + this.#opts.delta
+    this.#threshold = threshold
+    if (resolved.ratio >= threshold || resolved.force) {
       const messageId = messages.at(-1)?.id
       if (!messageId) throw new Error("Message in masker without ID. Should never happen.")
       // Create a checkpoint first, with the CURRENT threshold, not the new one.
@@ -186,7 +193,7 @@ export class Masker {
 
     if (mask === 0) return
 
-    const scorer = new ContextScoring()
+    const scorer = new ContextScoring({ elide: (p: MsgPart) => this.#elide(p) })
     const scores = scorer.score(messages)
     const parts: (MsgPart & { mask: () => AnyPart })[] = []
     for (const s of scores) {
@@ -229,6 +236,21 @@ export class Masker {
       (usage.tokens - masked) / opts.limit + this.#opts.delta,
       this.#opts.target + this.#opts.delta
     )
+  }
+
+  /** Render a part's digest stub: facts from the stored tool meta, the
+   *  owning message's transcript line, and a freshness probe re-stat. */
+  #elide(p: MsgPart) {
+    const message = p.message
+    // `lineOf` is session-store-backed; in-memory fakes may omit it.
+    const lineOf = (this.#session as { lineOf?: (id: string) => number | undefined }).lineOf
+    return elidedOf(p.part, {
+      stat: (path) => {
+        const s = safeStat(path)
+        return s ? Number(s.mtimeMs) : undefined
+      },
+      transcriptLine: message.id ? lineOf?.call(this.#session, message.id) : undefined,
+    })
   }
 
   /** Render the current projection using the last computed mask decisions. */

@@ -15,8 +15,8 @@ import { LazyCache } from "@zaly/shared/cache"
 type AgentContextOptions = Omit<AgentOptions, "session"> & { session: Session }
 
 type Slots = {
-  notifier: Notifier
   masker: Masker
+  notifier: Notifier
   permissions: PermissionManager
   swarm: Swarm
 }
@@ -70,6 +70,8 @@ export class AgentContext extends Emitter<AgentContextEvents> {
   }
 
   private async start() {
+    // The masker must exist before the first request: it hooks the
+    // `context` event to rewrite the outbound projection.
     const [_masker, notifier] = await Promise.all([this.masker(), this.notifier()])
 
     if (!this.model) throw new Error("model is required to start agent session")
@@ -232,6 +234,7 @@ export class AgentContext extends Emitter<AgentContextEvents> {
       this.#opts.mask
     )
   }
+
 
   async permissions(): Promise<PermissionManager> {
     return this.#cache.need(

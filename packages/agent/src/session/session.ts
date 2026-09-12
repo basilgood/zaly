@@ -133,6 +133,8 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     return this.#view.messages
   }
 
+  /** Last mask checkpoint on the active chain, if any. The masker reads
+   *  it to rebuild the identical projection after a restart. */
   get maskCheckpoint(): MaskCheckpoint | undefined {
     return this.#view.maskCheckpoint
   }
@@ -147,6 +149,12 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
 
   get path(): string | undefined {
     return this.#path
+  }
+
+  /** Line number (1-based) of the JSONL record for a message/node id.
+   *  Undefined for unknown ids or non-persisted (in-memory) sessions. */
+  lineOf(id: string): number | undefined {
+    return this.#store.lineOf?.(id)
   }
 
   get started(): boolean {
@@ -259,6 +267,9 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     return compactUuid
   }
 
+  /** Record a mask checkpoint: the last message included in the mask
+   *  projection and the hysteresis threshold that triggered the pass.
+   *  Persisted so a restarted masker rebuilds the same projection. */
   async addMaskCheckpoint(opts: MaskCheckpoint): Promise<string> {
     this.#view.maskCheckpoint = opts
     return this.#commit({ ...opts, type: "mask-checkpoint" })
@@ -382,7 +393,7 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
       if (!node || (node.type === "message" && messageNodes.length + 1 > limit)) break
       cursor = node.parentUuid
       reverse.push(node)
-      // Keep track if the last mask-checkpoint, until we hit a compaction.
+      // Keep track of the last mask-checkpoint, until we hit a compaction.
       if (node.type === "mask-checkpoint" && !compact && !maskCheckpoint) maskCheckpoint = node
       if (node.type === "message") messageNodes.push(node)
       if (node.type === "compact" && (opts.active ?? true)) {

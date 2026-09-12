@@ -169,14 +169,42 @@ describe("ContextScoring", () => {
     expect(readResult?.part).toMatchObject({ isError: true })
   })
 
-  test("default part policies mask attachments and task system text", () => {
+  test("default part policies mask attachments and task wake text", () => {
     const scoring = new ContextScoring()
     const groups = scoring.score([
-      user([{ mime: "image/png", source: { data: "abc", type: "base64" }, type: "image" }]),
-      { content: [text("task details")], meta: { kind: "task" }, role: "system" },
+      user([
+        { mime: "image/png", source: { data: "abc", type: "base64" }, type: "image" },
+      ]),
+      { content: [text("task details")], meta: { kind: "task" }, role: "user" },
     ])
 
     expect(groups.map((group) => group.parts[0].part.type).toSorted()).toEqual(["image", "text"])
     expect(groups.every((group) => group.parts[0].score > 0)).toBe(true)
+
+    const attachment = groups.find((group) => group.parts[0].part.type === "image")!
+    expect(attachment.policy.mask(attachment.parts[0], attachment)).toMatchObject({
+      data: { mime: "image/png", tool: "image" },
+      tag: "elided",
+      type: "meta",
+    })
+  })
+
+  test("skips parts that are already elided digest stubs", () => {
+    const scoring = new ContextScoring()
+    const groups = scoring.score([
+      tool([
+        {
+          content: [
+            { data: { code: 0, status: "exited", tool: "bash" }, tag: "elided", type: "meta" },
+          ],
+          id: "call",
+          name: "bash",
+          type: "tool-result",
+        },
+      ]),
+    ])
+
+    expect(groups).toHaveLength(0)
   })
 })
+

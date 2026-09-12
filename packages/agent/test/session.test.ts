@@ -394,6 +394,22 @@ describe("Session — JSONL persistence", () => {
     await loaded.close()
   })
 
+  test("mask checkpoint round-trips and is exposed on the active view", async () => {
+    const file = tmpPath("mask-checkpoint")
+    const s = await Session.load({ path: file })
+    await s.start()
+    await s.add(u("one"))
+    await s.add(a("two"))
+    const messageId = s.head!
+    await s.addMaskCheckpoint({ messageId, threshold: 0.75 })
+    await s.add(u("three"))
+    await s.close()
+
+    const loaded = await Session.load({ path: file })
+    expect(loaded.maskCheckpoint).toMatchObject({ messageId, threshold: 0.75 })
+    await loaded.close()
+  })
+
   test("load picks the latest record as head by default", async () => {
     const file = tmpPath("latest")
     const s = await Session.load({ path: file })

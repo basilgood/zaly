@@ -250,6 +250,15 @@ export interface AgentOptions extends CollectOptions {
   allow?: (req: PermissionRequest) => Promise<boolean>
 
   compaction?: MaybeGetter<Partial<CompactionOptions>>
+  /** Tool-result masking. When enabled, the agent rewrites older
+   *  re-callable tool results on the way to the provider as `<elided>`
+   *  digest stubs (path, range, mtime, exit code, status, transcript
+   *  line) — facts only, no instructions. Frees context without touching
+   *  the session DAG. See `Masker` for the cache-stability rules.
+   *
+   *  Defaults to enabled with the standard tuning. Pass
+   *  `{ enabled: false }` to disable, or an options object to tune. */
+  mask?: MaybeGetter<MaskerOptions>
   /** Override the default `bash` command used by the `bash` tool. */
   bash?: string[]
 

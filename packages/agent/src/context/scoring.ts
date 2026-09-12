@@ -25,16 +25,11 @@ import type { WriteTool, WriteToolMeta } from "../tools/write.ts"
 
 import { isAttachment, safeParseToolParams } from "@zaly/ai"
 import { safeStringify } from "@zaly/shared"
+import { elidedOf, isElided } from "./digest.ts"
 
 const DEFAULT_HALF_LIFE = 40
 const DEFAULT_WEIGHT = 1
 const DEFAULT_GAMMA = 0.5
-
-const maskedMeta = (result = "result", action = "call"): MetaPart => ({
-  content: `Masked ${result}. Re-${action} to refresh`,
-  tag: "masked",
-  type: "meta",
-})
 
 export type MsgPart<R extends Role = Role, P extends AnyPart = AnyPart> = {
   message: Message<R>
@@ -82,6 +77,11 @@ export type ToolRule<T extends Tool = Tool, M extends object = object> =
   | {
       key?: "name" | "params" | "id" | ((tool: ToolGroup<T, M>) => string | undefined)
     }
+
+/** Render a part's facts into the `<elided>` meta stub that replaces its
+ *  content. The masking layer supplies the digest options (transcript
+ *  line, freshness probe); scoring and its policies stay I/O-free. */
+export type Elide = (part: MsgPart) => MetaPart
 
 class MaskPolicy<
   P extends MsgPart = MsgPart,
@@ -137,11 +137,14 @@ class MaskPolicy<
   }
 }
 
-class ToolPolicy<T extends Tool = Tool, M extends object = object> extends MaskPolicy<
+class ToolPolicy<
+  T extends Tool = Tool,
+  M extends object = object,
+> extends MaskPolicy<
   ToolPart<T, M>,
   ToolGroup<T, M>
 > {
-  constructor(name: string, rule: ToolRule<T, M>) {
+  constructor(name: string, rule: ToolRule<T, M>, elide: Elide) {
     super({
       filter: (part) =>
         (part.part.type === "tool-call" || part.part.type === "tool-result") &&
@@ -153,7 +156,7 @@ class ToolPolicy<T extends Tool = Tool, M extends object = object> extends MaskP
             ...part.part,
             params: { masked: truncate(safeStringify(group.params), 100) },
           }
-        return { ...part.part, content: [maskedMeta()] }
+        return { ...part.part, content: [elide(part)] }
       },
       update: (group, part) => {
         group.name = name
@@ -180,10 +183,9 @@ function truncate(text: string, len: number): string {
   return text.length <= len ? text : `${text.slice(0, len)}…`
 }
 
-const fileScore: ToolRule<
-  ReadTool | WriteTool | EditTool,
-  ReadToolMeta | WriteToolMeta | EditToolMeta
-> = {
+const fileScore = (
+  elide: Elide
+): ToolRule<ReadTool | WriteTool | EditTool, ReadToolMeta | WriteToolMeta | EditToolMeta> => ({
   gamma: (t) => {
     if (t.name === "write") return 0.45
     if (t.name === "edit") return 0.65
@@ -203,7 +205,7 @@ const fileScore: ToolRule<
         ...part.part,
         params: { masked: true, path: part.part.params.path },
       }
-    return part.part.isError ? part.part : { ...part.part, content: [maskedMeta()] }
+    return part.part.isError ? part.part : { ...part.part, content: [elide(part)] }
   },
   weight: (t) => {
     if (t.name === "write") return 1.25
@@ -211,30 +213,13 @@ const fileScore: ToolRule<
     if (t.result?.meta?.full) return 1.1
     return 1
   },
-}
+})
 
-export type ContextScoringOptions = {
-  tools?: Record<AnyTool | "*", ToolRule>
-  parts?: MaskRule[]
-}
-
-const defaults: ContextScoringOptions = {
-  parts: [
-    {
-      filter: (part) => isAttachment(part.part),
-      mask: (part) => maskedMeta(part.part.type, "attach"),
-    },
-    {
-      filter: (part) => part.message.role === "system" && part.message.meta?.kind === "task",
-      halfLife: 25,
-      mask: (part) => {
-        if (part.part.type === "meta") return part.part
-        return maskedMeta("task")
-      },
-    },
-  ],
+/** Default tool policies. Built per scorer so every stub renderer shares
+ *  the caller-supplied `elide`. */
+const defaultTools = (elide: Elide): Record<AnyTool | "*", ToolRule> =>
   // oxlint-disable-next-line sort-keys
-  tools: {
+  ({
     bash: {
       gamma: 0.35,
       halfLife: 25,
@@ -244,12 +229,36 @@ const defaults: ContextScoringOptions = {
     grep: { gamma: 0.7, halfLife: 35 },
     search: { gamma: 0.5, halfLife: 40 },
 
-    read: fileScore,
-    edit: fileScore,
-    write: fileScore,
+    read: fileScore(elide),
+    edit: fileScore(elide),
+    write: fileScore(elide),
 
     "*": { gamma: 0.5, halfLife: 40 },
-  } as Record<AnyTool | "*", ToolRule>,
+  }) as Record<AnyTool | "*", ToolRule>
+
+/** Default non-tool policies: attachments (always maskable) and task
+ *  wake messages (cheap to mask once their work has been collected). */
+const defaultParts = (elide: Elide): MaskRule[] => [
+  {
+    filter: (part) => isAttachment(part.part),
+    mask: (part) => elide(part),
+  },
+  {
+    filter: (part) => (part.message as { meta?: { kind?: string } }).meta?.kind === "task",
+    halfLife: 25,
+    mask: (part) => {
+      if (part.part.type === "meta") return part.part
+      return elide(part)
+    },
+  },
+]
+
+export type ContextScoringOptions = {
+  /** Stub renderer for masked parts. Defaults to a plain digest with no
+   *  transcript line or freshness probe. */
+  elide?: Elide
+  tools?: Record<AnyTool | "*", ToolRule>
+  parts?: MaskRule[]
 }
 
 export class ContextScoring {
@@ -258,11 +267,12 @@ export class ContextScoring {
   #policies: MaskPolicy[] = []
 
   constructor(opts: ContextScoringOptions = {}) {
-    const tools = { ...defaults.tools, ...opts.tools }
+    const elide = opts.elide ?? ((part: MsgPart) => elidedOf(part.part))
+    const tools = { ...defaultTools(elide), ...opts.tools }
     for (const [name, tool] of Object.entries(tools)) {
-      this.#policies.push(new ToolPolicy(name, tool) as MaskPolicy)
+      this.#policies.push(new ToolPolicy(name, tool, elide) as MaskPolicy)
     }
-    for (const rule of [...(defaults.parts ?? []), ...(opts.parts ?? [])]) {
+    for (const rule of [...defaultParts(elide), ...(opts.parts ?? [])]) {
       this.#policies.push(new MaskPolicy(rule))
     }
   }
@@ -292,6 +302,9 @@ export class ContextScoring {
   }
 
   #policy(part: MsgPart): MaskPolicy | undefined {
+    // Never mask a part that's already a digest stub — guards restored /
+    // replay projections from re-masking their own output.
+    if (isElided(part.part)) return undefined
     return this.#policies.find((policy) => policy.filter(part))
   }
 

@@ -3,13 +3,15 @@ import type { Content, Message } from "@zaly/ai"
 import { defineTool, stringifyContent } from "@zaly/ai"
 import { Type } from "typebox"
 import { describe, expect, test } from "vitest"
-import { mockModel, runAgent, throwingModel } from "./helpers.ts"
+import { loadAgent, mockModel, runAgent, throwingModel } from "./helpers.ts"
 
 const Add = defineTool({
   call: ({ a, b }) => a + b,
   name: "add",
   params: Type.Object({ a: Type.Number(), b: Type.Number() }),
 })
+
+const usage = (input: number, output: number) => ({ input, output })
 
 describe("Agent — no tool calls", () => {
   test("completes in one step when the model stops", async () => {
@@ -240,6 +242,99 @@ describe("Agent — context overflow", () => {
   })
 })
 
+describe("Agent — compaction summarizer model", () => {
+  test("uses the configured compaction.model instead of the session model", async () => {
+    // Session model errors if used for the summary; the configured
+    // summarizer succeeds. If compaction picked the wrong model, the
+    // run surfaces the throw instead of a completed summary.
+    const sessionModel = throwingModel("session model must not summarize")
+    const summaryModel = mockModel([
+      [
+        { delta: "## 1. Goal\ntest goal", type: "text-delta" },
+        { finishReason: "stop", type: "finish", usage: { input: 10, output: 5 } },
+      ],
+    ])
+    const agent = await loadAgent({
+      compaction: { model: "mock/summary" },
+      loadModel: async (id) => {
+        if (id === "mock/summary") return summaryModel
+        throw new Error(`unexpected model load: ${id}`)
+      },
+      messages: [{ content: "hi", role: "user" }],
+      model: sessionModel,
+    })
+    // Assert before compact: no `compact` node exists yet.
+    await agent.compact()
+    // session.messages flattens the compact node into a system summary
+    // message; check it landed (proves #summarize ran on the summaryModel
+    // — the session model throws if called).
+    const kinds = agent.session.messages.map((m) => m.role)
+    expect(kinds[0]).toBe("system")
+  })
+
+  test("compaction summarizes raw history, not the masked projection", async () => {
+    let summaryPrompt = ""
+    const summaryModel = mockModel([
+      [
+        { delta: "## 1. Goal\ntest goal", type: "text-delta" },
+        { finishReason: "stop", type: "finish", usage: { input: 10, output: 5 } },
+      ],
+    ])
+    const original = summaryModel.stream.bind(summaryModel)
+    summaryModel.stream = ((context, opts) => {
+      summaryPrompt = stringifyContent(context.messages[0].content as Content)
+      return original(context, opts)
+    }) as typeof summaryModel.stream
+
+    // Seed a history where the probe result is old enough to fall outside
+    // the compaction tail — so the summarizer's `older` slice (not the
+    // verbatim tail) is what must carry the raw result. Increasing usage
+    // over later turns makes `messageTail` cut before the tool result.
+    const messages: Message[] = [
+      { content: "go", role: "user" },
+      {
+        content: [{ id: "call_1", name: "probe", params: {}, type: "tool-call" }],
+        meta: { usage: usage(10, 5) },
+        role: "assistant",
+      },
+      {
+        content: [
+          { content: "RAW-TOOL-OUTPUT-UNIQUE", id: "call_1", name: "probe", type: "tool-result" },
+        ],
+        role: "tool",
+      },
+      { content: "first", meta: { usage: usage(40, 10) }, role: "assistant" },
+      { content: "more", role: "user" },
+      { content: "second", meta: { usage: usage(90, 20) }, role: "assistant" },
+      { content: "more2", role: "user" },
+      { content: "third", meta: { usage: usage(150, 20) }, role: "assistant" },
+    ]
+    const agent = await loadAgent({
+      compaction: { keepTokens: 20, model: "mock/summary" },
+      loadModel: async () => summaryModel,
+      mask: { keepTurns: -1, minTokens: 1, target: 0.1 },
+      messages,
+      model: throwingModel("session model must not run"),
+    })
+
+    // Sanity: an outbound projection with masking would elide that result;
+    // compaction must still read the raw session history.
+    const masker = await agent.ctx.masker()
+    const projected = await masker!.mask(agent.session.messages, {
+      force: true,
+      limit: 100,
+      ratio: 1,
+    })
+    expect(JSON.stringify(projected)).toContain('"tag":"elided"')
+
+    await agent.compact()
+
+    expect(summaryPrompt).toContain("<tool-result>")
+    expect(summaryPrompt).toContain("RAW-TOOL-OUTPUT-UNIQUE")
+    expect(summaryPrompt).not.toContain("<elided>")
+  })
+})
+
 function sameAddCall(id: string): {
   id: string
   name: "add"
@@ -307,7 +402,7 @@ describe("Agent — loop detection", () => {
 
   test("injects a corrective nudge and lets the model break the loop", async () => {
     // Three identical add(1,1) calls trip loopConsecutive=3 → the agent
-    // injects a loop-nudge user message and continues; the model then
+    // injects a loop-nudge system message and continues; the model then
     // answers naturally instead of halting.
     const model = mockModel([
       [sameAddCall("c1"), { finishReason: "tool-calls", type: "finish", usage: { input: 1, output: 1 } }],
@@ -325,7 +420,7 @@ describe("Agent — loop detection", () => {
       tools: [Add],
     })
     expect(result.stopReason).toBe("natural")
-    const nudges = result.messages.filter((m) => m.role === "user" && m.meta?.kind === "loop-nudge")
+    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
     expect(nudges).toHaveLength(1)
     expect(stringifyContent(nudges[0].content as Content)).toMatch(/loop nudge 1/)
     expect(stringifyContent(nudges[0].content as Content)).toMatch(/add/)
@@ -347,7 +442,51 @@ describe("Agent — loop detection", () => {
       tools: [Add],
     })
     expect(result.stopReason).toBe("loop-detected")
-    const nudges = result.messages.filter((m) => m.role === "user" && m.meta?.kind === "loop-nudge")
+    const nudges = result.messages.filter((m) => m.role === "system" && m.meta?.kind === "loop-nudge")
     expect(nudges).toHaveLength(1)
+  })
+})
+
+describe("Agent — masking", () => {
+  test("rewrites old tool results to <elided> stubs in the outbound request only", async () => {
+    let captured: Message[] = []
+    const toolResult = defineTool({
+      call: () => "some long tool output that is worth masking away",
+      name: "probe",
+      params: Type.Object({}),
+    })
+    const model = mockModel([
+      [
+        { params: {}, id: "c1", name: "probe", type: "tool-call" },
+        { finishReason: "tool-calls", type: "finish", usage: { input: 60, output: 20 } },
+      ],
+      [
+        { delta: "done", type: "text-delta" },
+        { finishReason: "stop", type: "finish", usage: { input: 1, output: 1 } },
+      ],
+    ])
+    const original = model.stream.bind(model)
+    model.stream = ((context, opts) => {
+      captured = context.messages as Message[]
+      return original(context, opts)
+    }) as typeof model.stream
+
+    const result = await runAgent({
+      contextLimit: 100,
+      mask: { keepTurns: -1, minTokens: 1, target: 0.1 },
+      messages: [{ content: "go", role: "user" }],
+      model,
+      tools: [toolResult],
+    })
+
+    expect(result.stopReason).toBe("natural")
+    // The session keeps the raw result.
+    const sessionTool = result.messages.find((m) => m.role === "tool") as Message<"tool">
+    expect(stringifyContent(sessionTool.content[0].content)).toContain("some long tool output")
+    // The second request (after the tool ran) carries the stub instead.
+    const requestTool = captured.find((m) => m.role === "tool") as Message<"tool">
+    expect(requestTool.content[0].content).toMatchObject([
+      { data: { firstLine: "some long tool output that is worth masking away", tool: "probe" }, tag: "elided", type: "meta" },
+    ])
   })
 })
