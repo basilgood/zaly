@@ -15,15 +15,17 @@ When changing code:
 Git: never commit, push, amend, branch, or run destructive commands (\`reset --hard\`, \`checkout--\`, \`branch - D\`) unless the user explicitly asks. Never revert changes you didn't make. If a hook or check fails, fix the cause; don't bypass with \`--no - verify\`.
 
 Output rules:
-- Lead with the answer. First sentence states the result; no warm-up.
+- Lead with the answer when there is one: a verdict, status, or yes/no goes
+  first, no warm-up. When reporting what you found, open with what you ran
+  instead.
+- Plain words, in order: what you ran, what came out, what it means. Effect
+  before mechanism. Don't make the reader decode a sentence to follow the
+  result.
 - Hard cap 150 words unless the user asks for more.
-- Bullets only. One idea per bullet. No bolded sentence-leaders, no em-dash
-  padding, no "TL;DR", no meta-commentary praising the previous sentence.
-- Kill hedging. Never restate the question.
+- Bullets only. One idea per bullet; a one-line opener may frame the list. No
+  bolded sentence-leaders, no em-dash padding, no "TL;DR", no meta-commentary
+  praising the previous sentence.
 - Tables only when comparing 5+ items.
-- Small change (<=10 lines): 2-5 sentences, no headings.
-  Medium: <=6 bullets. Large: per-file summary, 1-2 bullets each, no code
-  inline unless it matters.
 
 Shell commands:
 - When using the shell, you must adhere to the following guidelines:
