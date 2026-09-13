@@ -33,6 +33,9 @@ export type MaskOpts = {
   ratio?: number
   tools?: Tool[]
   prompt?: string[]
+  /** Provider-measured tokens of the current projection. Anchors the
+   *  hysteresis threshold to the real scale instead of `chars/4`. */
+  used?: number
 }
 
 const defaults = {
@@ -96,6 +99,7 @@ export class Masker {
       prompt: this.#agent.prompt,
       ratio: pressure.ratio,
       tools: this.#agent.tools,
+      used: pressure.used,
       ...opts,
     }
   }
@@ -147,8 +151,9 @@ export class Masker {
         this.#threshold = cp.threshold
         const idx = messages.findIndex((m) => m.id === cp.messageId)
         // NOTE: the checkpoint message should exists. If not mask all, just in case
-        // Rebuild the mask decisions
-        this.#update(idx === -1 ? messages : messages.slice(0, idx + 1), resolved)
+        // Rebuild the mask decisions, reusing the threshold the checkpoint
+        // recorded so a resume lands on the same projection the pass made.
+        this.#update(idx === -1 ? messages : messages.slice(0, idx + 1), resolved, cp.threshold, resolved.used)
       }
     }
 
@@ -156,14 +161,20 @@ export class Masker {
     const threshold = this.#threshold ?? this.#opts.target + this.#opts.delta
     this.#threshold = threshold
     if (resolved.ratio >= threshold || resolved.force) {
-      const messageId = messages.at(-1)?.id
+      // Record the session's head node, not the message's own id: a reload
+      // rebuilds message ids from the nodes, so only the node uuid still
+      // resolves after a resume. Falls back to the message id for fakes.
+      const messageId = this.#session.head ?? messages.at(-1)?.id
       if (!messageId) throw new Error("Message in masker without ID. Should never happen.")
       // Create a checkpoint first, with the CURRENT threshold, not the new one.
       await this.#session.addMaskCheckpoint({
         messageId,
         threshold: this.#threshold,
       })
-      this.#update(messages, resolved)
+      // `used` is the provider's measurement of the request that produced
+      // `ratio`, i.e. of the projection currently in effect. That's our
+      // only cross-check on what this pass is really operating on.
+      this.#update(messages, resolved, undefined, resolved.used)
     }
     return this.#mask(messages)
   }
@@ -175,21 +186,35 @@ export class Masker {
   }
 
   /** Recompute mask decisions for the current message history. */
-  #update(messages: readonly Message[], opts: Required<MaskOpts>): void {
+  #update(
+    messages: readonly Message[],
+    opts: Required<MaskOpts>,
+    /** Explicit threshold to restore when replaying a session checkpoint. */
+    threshold?: number,
+    /** Provider-measured tokens of the request currently in effect. */
+    used?: number
+  ): void {
     this.#masked.clear()
     this.#stats.clear()
-    this.#threshold = this.#opts.target + this.#opts.delta
+    this.#threshold = threshold ?? this.#opts.target + this.#opts.delta
     const usage = tokenStats(messages, { prompt: opts.prompt, tools: opts.tools })
     // `pressure.ratio` is based on the current projected/masked request,
     // not the raw session. Raw history may exceed model context; masking
     // only needs to keep the projected request in a safe band.
     const targetRatio = Math.max(this.#opts.target, this.#threshold - this.#opts.delta)
     const target = opts.limit * targetRatio
+    // `used` describes the request that produced `ratio`, so the pass can
+    // tell how far our `chars/4` estimate has drifted from the provider's
+    // count. Re-arming from the raw estimate instead pushes the next
+    // threshold above what was actually sent — each pass then fires later
+    // and masks less, walking the projection toward compaction.
+    const scale = used !== undefined && used > 0 && usage.tokens > 0 ? used / usage.tokens : undefined
+    const size = (tokens: number): number => (scale === undefined ? tokens : tokens * scale)
 
     // Return when already under target.
-    if (usage.tokens <= target) return
+    if (size(usage.tokens) <= target) return
 
-    let mask = usage.tokens - target
+    let mask = size(usage.tokens) - target
 
     if (mask === 0) return
 
@@ -214,7 +239,7 @@ export class Masker {
 
       if (p.turn <= this.#opts.keepTurns) continue
 
-      const tokens = estimatePart(p.part).tokens
+      const tokens = size(estimatePart(p.part).tokens)
       if (tokens < this.#opts.minTokens) continue
 
       const part = p.mask()
@@ -227,13 +252,17 @@ export class Masker {
         `${p.part.type}${p.part.type === "tool-result" || p.part.type === "tool-call" ? `:${p.part.name}` : ""}`
       )
       this.#masked.set(id, msgParts)
-      const delta = tokens - estimatePart(part).tokens
+      const delta = tokens - size(estimatePart(part).tokens)
       masked += delta
       mask -= delta
     }
 
+    // The calibrated projection size is the scale the *next* trigger
+    // compares against, so the re-arm has to use it too. A pass that
+    // couldn't free enough still raises the threshold to `raw + delta` to
+    // avoid repeated no-op cache busts, which `size()` preserves.
     this.#threshold = Math.max(
-      (usage.tokens - masked) / opts.limit + this.#opts.delta,
+      (size(usage.tokens) - masked) / opts.limit + this.#opts.delta,
       this.#opts.target + this.#opts.delta
     )
   }

@@ -301,4 +301,37 @@ describe("Masker", () => {
     await masker.mask(messages, { limit: 1000, ratio: 0.4 })
     expect(agent.session.addMaskCheckpoint).toHaveBeenCalledTimes(1)
   })
+
+  test("re-arm calibrates to provider-measured tokens, not the local estimate", async () => {
+    const agent = fakeAgent()
+    const masker = new Masker(agent, { keepTurns: 0, target: 0.1 })
+    // A big plain user text is neither a tool result nor an attachment, so
+    // the pass masks nothing and the re-arm is purely the size it measured.
+    const messages: Message[] = [user("u1", "x".repeat(4000)), assistant("a1")]
+
+    // Provider counted 300 tokens; `tokenStats` estimates ~1000. The
+    // calibrated re-arm is 300/1000 + 0.25 = 0.55, so a request past that
+    // still triggers. The raw estimate would have set 1.25 — above any
+    // reachable ratio, permanently disabling further passes.
+    await masker.mask(messages, { limit: 1000, ratio: 0.4, used: 300 })
+    expect(agent.session.addMaskCheckpoint).toHaveBeenCalledTimes(1)
+    expect(masker.masked).toBe(0)
+
+    await masker.mask(messages, { limit: 1000, ratio: 0.6, used: 600 })
+    expect(agent.session.addMaskCheckpoint).toHaveBeenCalledTimes(2)
+  })
+
+  test("restoring a checkpoint replays the threshold it recorded", async () => {
+    const agent = fakeAgent()
+    agent.session.maskCheckpoint = { messageId: "a1", threshold: 0.9 }
+    const masker = new Masker(agent, { keepTurns: 0, minTokens: 1, target: 0.1 })
+    const messages: Message[] = [user("u1", [image()]), assistant("a1")]
+
+    // The checkpoint says 0.9, so a fresh pass would target 0.65, not the
+    // 0.35 the default threshold implies. Nothing triggers, no checkpoint.
+    const projected = await masker.mask(messages, { limit: 1000, ratio: 0.2, used: 200 })
+    expect(masker.masked).toBe(0)
+    expect(agent.session.addMaskCheckpoint).toHaveBeenCalledTimes(0)
+    expect(projected[0]).toBe(messages[0])
+  })
 })
