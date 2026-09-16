@@ -2,47 +2,26 @@ import type { MetaPart, TextPart, ToolContext } from "@zaly/ai"
 
 import { defineTool } from "@zaly/ai"
 import { Type } from "typebox"
-import { assertGh, budgetTruncate, filterLog, runGh } from "./gh-shared.ts"
+import type { GhApi, GhRepo } from "./gh-shared.ts"
+import { assertGh, budgetTruncate, extractGhIds, ghJson, ghText, isGhUrl, isNumericId, parseRepo } from "./gh-shared.ts"
 
-export type GhRunTool = typeof ghRunTool
-export type GhRunToolMeta = {
+export type GhCheckRunTool = typeof ghCheckRunTool
+export type GhCheckRunToolMeta = {
+  /** Set when the ID resolved to a workflow run (feed it to `gh_fetch`). */
+  runId?: string
   code: number
   durationMs: number
-  mode: string
   ok: boolean
+  /** "run" for a resolved workflow run, "check" for an external app check-run. */
+  resolved?: string
   truncated?: { bytes: number; hint: string; lines: number }
   url: string
 }
 
 // ── URL / ID parsing ───────────────────────────────────────────────────
 
-export type GhRepo = { owner: string; repo: string }
-
-export function parseRepo(url: string): GhRepo | undefined {
-  const m = url.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)/)
-  return m ? { owner: m[1], repo: m[2] } : undefined
-}
-
-export function extractIds(url: string): { id: string; jobId?: string } | undefined {
-  // Job URL: /runs/{run_id}/job/{job_id}
-  const jobMatch = url.match(/\/runs\/(\d+)\/job\/(\d+)/)
-  if (jobMatch) return { id: jobMatch[1], jobId: jobMatch[2] }
-  // Standard paths: /runs/123, /actions/runs/123, /check-runs/123
-  const m = url.match(/\/(runs|actions\/runs|check-runs)\/(\d+)/)
-  if (m) return { id: m[2] }
-  // PR checks page query string: /pull/1091/checks?check_run_id=123
-  const q = url.match(/[?&]check_run_id=(\d+)/)
-  if (q) return { id: q[1] }
-  return undefined
-}
-
-export function isUrl(input: string): boolean {
-  return input.startsWith("http://") || input.startsWith("https://")
-}
-
-export function isNumeric(value: string): boolean {
-  return /^\d+$/.test(value)
-}
+// parseRepo / extractGhIds / isGhUrl / isNumericId live in gh-shared.ts so both
+// gh tools share one parser.
 
 export function isGitHubActionsApp(checkRun: { app?: { name?: string; slug?: string } }): boolean {
   return checkRun.app?.slug === "github-actions" || checkRun.app?.name === "GitHub Actions"
@@ -51,15 +30,18 @@ export function isGitHubActionsApp(checkRun: { app?: { name?: string; slug?: str
 // ── Tool ──────────────────────────────────────────────────────────────
 
 // oxlint-disable-next-line sort-keys -- semantic field order: name, desc, params, call
-export const ghRunTool = defineTool({
+export const ghCheckRunTool = defineTool({
   name: "gh_run",
   desc:
-    `Resolve GitHub Actions check-run IDs to real workflow run IDs and fetch run metadata, job metadata, and logs. ` +
-    `For external app check-runs (e.g. codecov, orca) that do not belong to a workflow run, returns the check-run output and annotations directly. ` +
-    `Use this when the user provides a GitHub Actions URL/check-run ID and gh run view returns an HTTP 404 because the ID is a check_run_id, not a run_id. ` +
-    `Optional 'jq' + 'fields' args run a jq expression over the --json metadata output (mode 'metadata' only) for token-efficient queries. ` +
-    `When fetching logs to inspect failures, ALWAYS pass 'grep' (e.g. '✘' for Playwright failures, 'Error' for others) and 'head' — returning the full log is extremely token-expensive.`,
+    `Resolve a GitHub Actions check-run ID to the workflow run ID it belongs to, so gh_fetch can read it. ` +
+    `Use this when you have a check-run/check-suite link (or a bare check_run_id) and gh run view / gh_fetch ` +
+    `return HTTP 404, because a check_run_id is not a run_id. Answers with the run ID and, for GitHub Actions ` +
+    `check-runs, the job that matched. For external app check-runs (codecov, orca) that belong to no workflow ` +
+    `run, returns that app's own output and annotations instead. ` +
+    `This tool never fetches metadata or logs: once you have a run ID, use gh_fetch ` +
+    `(e.g. gh_fetch(".../actions/runs/<id>", mode: "log", grep: "Error")).`,
   parallel: true,
+  // oxlint-disable-next-line sort-keys -- semantic param order: url, repo, branch, workflow, limit
   params: Type.Object({
     url: Type.String({
       description:
@@ -71,18 +53,6 @@ export const ghRunTool = defineTool({
       Type.String({
         description: "Repository in owner/repo form. Required when the input is only a numeric ID.",
       })
-    ),
-    mode: Type.Optional(
-      Type.Union(
-        [Type.Literal("metadata"), Type.Literal("log"), Type.Literal("log-failed"), Type.Literal("job")],
-        {
-          default: "metadata",
-          description:
-            `What to fetch: 'metadata' (default) returns run/check info, 'log' returns full run logs, ` +
-            `'log-failed' returns only failed run logs, 'job' returns only the specific job's metadata/logs ` +
-            `(most precise, token-saver). Ignored for external app check-runs.`,
-        }
-      )
     ),
     branch: Type.Optional(
       Type.String({
@@ -100,33 +70,6 @@ export const ghRunTool = defineTool({
         description: "Max number of recent runs to inspect when resolving a check_run_id.",
       })
     ),
-    jq: Type.Optional(
-      Type.String({
-        description:
-          `jq expression applied to the --json output, e.g. '.jobs[] | .name + ": " + .conclusion'. ` +
-          `Only used with mode 'metadata'; returns the raw jq output instead of the full text view. Ignored for log modes.`,
-      })
-    ),
-    fields: Type.Optional(
-      Type.String({
-        default: "jobs",
-        description: "Comma-separated JSON fields for --json when jq is set (default 'jobs').",
-      })
-    ),
-    grep: Type.Optional(
-      Type.String({
-        description:
-          `Regex; when set, log output is filtered to lines matching it (e.g. '✘' for failing test lines). ` +
-          `Only used with log modes; ignored for mode 'metadata'. ALWAYS pass this when inspecting failures — ` +
-          `the full log is extremely token-expensive.`,
-      })
-    ),
-    head: Type.Optional(
-      Type.Integer({
-        default: 10,
-        description: "Max matching log lines to return when grep is set (default 10).",
-      })
-    ),
     max_tokens: Type.Optional(
       Type.Integer({
         default: 4000,
@@ -135,15 +78,21 @@ export const ghRunTool = defineTool({
       })
     ),
   }),
-  async call(args, ctx: ToolContext<GhRunToolMeta>): Promise<(MetaPart | TextPart)[]> {
+  async call(args, ctx: ToolContext<GhCheckRunToolMeta>): Promise<(MetaPart | TextPart)[]> {
     const t0 = Date.now()
     assertGh()
 
-    const mode = args.mode ?? "metadata"
-    const meta: GhRunToolMeta = { code: 0, durationMs: 0, mode, ok: true, url: args.url }
-    const text = await fetchRun(args, ctx)
-    const budget = budgetTruncate(text, {
-      hint: "output exceeded budget; pass `jq`/`fields` for metadata or `grep`/`head` for logs.",
+    const meta: GhCheckRunToolMeta = { code: 0, durationMs: 0, ok: true, url: args.url }
+    const result = await resolve(args, ctx)
+    if (result.runId) {
+      meta.resolved = "run"
+      meta.runId = result.runId
+    } else if (result.external) {
+      meta.resolved = "check"
+    }
+    const budget = await budgetTruncate(result.text, {
+      ctx,
+      hint: "output exceeded budget. Full output is at truncated.fullOutputPath — read it instead of refetching.",
       maxTokens: args.max_tokens,
     })
     if (budget.truncated) meta.truncated = budget.truncated
@@ -152,299 +101,198 @@ export const ghRunTool = defineTool({
   },
 })
 
-async function fetchRun(
-  args: {
-    branch?: string
-    fields?: string
-    grep?: string
-    head?: number
-    jq?: string
-    limit?: number
-    mode?: "job" | "log" | "log-failed" | "metadata"
-    repo?: string
-    url: string
-    workflow?: string
-  },
+async function resolve(
+  args: { branch?: string; limit?: number; repo?: string; url: string; workflow?: string },
   ctx: ToolContext
-): Promise<string> {
-  const { branch, fields, grep, head, jq, limit, mode, repo: repoArg, url: input, workflow } = args
-  const logMode = mode === "log" || mode === "log-failed"
+): Promise<{ external?: boolean; runId?: string; text: string }> {
+  const { branch, limit, repo: repoArg, url: input, workflow } = args
 
-  let repo: GhRepo | undefined = undefined
+  let repo: GhRepo | undefined
   let id = ""
-  let explicitJobId: string | undefined
+  let kind: "run" | "check" | undefined
 
-  if (isUrl(input)) {
+  if (isGhUrl(input)) {
     repo = parseRepo(input)
-    const ids = extractIds(input)
+    const ids = extractGhIds(input)
     id = ids?.id ?? ""
-    explicitJobId = ids?.jobId
-    if (!repo) return "Could not parse owner/repo from the URL."
-    if (!id) return "Could not extract a run/check-run ID from the URL."
-  } else if (isNumeric(input)) {
+    kind = ids?.kind
+    if (!repo) return { text: "Could not parse owner/repo from the URL." }
+    if (!id) return { text: "Could not extract a run/check-run ID from the URL." }
+  } else if (isNumericId(input)) {
+    kind = undefined
     id = input
-    if (!repoArg) return "A numeric ID requires repo in owner/repo form."
+    if (!repoArg) return { text: "A numeric ID requires repo in owner/repo form." }
     const m = repoArg.match(/^([^/]+)\/([^/]+)$/)
-    if (!m) return "repo must be in owner/repo form."
+    if (!m) return { text: "repo must be in owner/repo form." }
     repo = { owner: m[1], repo: m[2] }
   } else {
-    return "Input must be a GitHub Actions URL or a numeric ID."
+    return { text: "Input must be a GitHub Actions URL or a numeric ID." }
   }
 
   const { owner, repo: repoName } = repo
+  const slug = `${owner}/${repoName}`
 
-  // oxlint-disable-next-line no-unnecessary-type-parameters -- callers pass explicit type args
-  async function api<T = unknown>(path: string): Promise<{ data: T | undefined; error: string | undefined }> {
-    const { stdout, stderr, code } = await runGh(["api", path], ctx)
-    if (code !== 0) return { data: undefined, error: `gh api ${path}: ${stderr || stdout}` }
-    try {
-      return { data: JSON.parse(stdout) as T, error: undefined }
-    } catch {
-      return { data: stdout as unknown as T, error: undefined }
-    }
+  const api: GhApi = (path) => ghJson(path, ctx)
+
+  /** A run the ID already is — no resolution needed. */
+  const isWorkflowRun = async (runId: string): Promise<boolean> => {
+    const detail = await api(`repos/${slug}/actions/runs/${runId}`)
+    return detail.data !== undefined && detail.error === undefined
   }
 
-  async function tryRunView(runId: string): Promise<string | undefined> {
-    const { stdout, stderr, code } = await runGh(["run", "view", runId, "--repo", `${owner}/${repoName}`], ctx)
-    if (code !== 0) {
-      if (stderr.includes("HTTP 404") || stdout.includes("HTTP 404")) return undefined
-      return `gh run view ${runId} error: ${stderr}`
-    }
-    return stdout
-  }
+  const runIdAnswer = (runId: string, how: string, extra?: string): { runId: string; text: string } => ({
+    runId,
+    text: [
+      `Resolved to workflow run ${runId} in ${slug} (${how}).`,
+      `Next: gh_fetch("https://github.com/${slug}/actions/runs/${runId}", mode: "metadata") for status/jobs,`,
+      `or mode: "log" with grep/head for failures.`,
+      ...(extra ? [extra] : []),
+    ].join("\n"),
+  })
 
-  async function fetchLogs(runId: string): Promise<string> {
-    const logFlag = mode === "log-failed" ? "--log-failed" : "--log"
-    const { stdout, stderr, code } = await runGh(
-      ["run", "view", runId, "--repo", `${owner}/${repoName}`, logFlag],
-      ctx
-    )
-    if (code !== 0) return `gh run view ${runId} ${logFlag} error: ${stderr}`
-    return filterLog(stdout, grep, head)
-  }
+  // Only a bare numeric ID is ambiguous — URLs name the resource themselves
+  // (/runs/… is a run, /check-runs/… is a check run), so skip the probe there.
+  if (kind !== "check" && (await isWorkflowRun(id))) return runIdAnswer(id, "ID is a workflow run ID")
 
-  async function fetchJob(jobId: string): Promise<string | undefined> {
-    const args = ["run", "view", "--job", jobId, "--repo", `${owner}/${repoName}`]
-    if (logMode) args.push(mode === "log-failed" ? "--log-failed" : "--log")
-    const { stdout, stderr, code } = await runGh(args, ctx)
-    if (code !== 0) {
-      if (stderr.includes("HTTP 404") || stdout.includes("HTTP 404")) return undefined
-      return `gh run view --job ${jobId} error: ${stderr}`
-    }
-    return filterLog(stdout, grep, head)
-  }
-
-  async function fetchJq(runId: string, jobId?: string): Promise<string> {
-    if (!jq) return "jq expression required."
-    const args = ["run", "view"]
-    if (jobId) args.push("--job", jobId)
-    args.push(runId, "--repo", `${owner}/${repoName}`, "--json", fields ?? "jobs", "--jq", jq)
-    const { stdout, stderr, code } = await runGh(args, ctx)
-    if (code !== 0) return `gh run view --json --jq error: ${stderr || stdout}`
-    return stdout
-  }
-
-  async function listRuns(): Promise<Array<{ databaseId: number }>> {
-    const args = [
-      "run",
-      "list",
-      "--repo",
-      `${owner}/${repoName}`,
-      "--limit",
-      String(limit ?? 10),
-      "--json",
-      "databaseId,workflowDatabaseId,headBranch,name,displayTitle,status,conclusion,createdAt,url",
-    ]
-    if (branch) args.push("--branch", branch)
-    if (workflow) args.push("--workflow", workflow)
-    const { stdout, code } = await runGh(args, ctx)
-    if (code !== 0) return []
-    try {
-      return JSON.parse(stdout) as Array<{ databaseId: number }>
-    } catch {
-      return []
-    }
-  }
-
-  async function resolveCheckRunToRunId(checkRun: {
-    details_url?: string
-    html_url?: string
-  }): Promise<string | undefined> {
-    const jobUrl = checkRun.html_url ?? checkRun.details_url ?? ""
-    const jobMatch = jobUrl.match(/\/runs\/(\d+)\/job\/(\d+)$/)
-    if (jobMatch) {
-      const jobDetail = await api<{ run_id?: number }>(`repos/${owner}/${repoName}/actions/jobs/${jobMatch[2]}`)
-      if (jobDetail.data?.run_id) {
-        return String(jobDetail.data.run_id)
-      }
-    }
-    return undefined
-  }
-
-  async function fetchCheckRunOutput(checkRun: {
+  const checkRun = await api<{
     app?: { name?: string; slug?: string }
+    check_suite?: { id?: number }
     conclusion?: string
-    html_url?: string
     details_url?: string
+    html_url?: string
     id: number
     name?: string
     output?: { summary?: string; text?: string; title?: string }
     status?: string
     url?: string
-  }): Promise<string> {
-    const parts: string[] = []
-    parts.push(`Check run: ${checkRun.name} (ID ${checkRun.id})`)
-    parts.push(`Status: ${checkRun.status ?? "unknown"}`)
-    parts.push(`Conclusion: ${checkRun.conclusion ?? "unknown"}`)
-    parts.push(`App: ${checkRun.app?.name ?? "unknown"} (${checkRun.app?.slug ?? "unknown"})`)
-    parts.push(`URL: ${checkRun.html_url ?? checkRun.details_url ?? checkRun.url}`)
-    if (checkRun.output) {
-      const { title, summary, text } = checkRun.output
-      if (title) parts.push(`\nTitle: ${title}`)
-      if (summary) parts.push(`\nSummary:\n${summary}`)
-      if (text) parts.push(`\nDetails:\n${text}`)
-    }
+  }>(`repos/${slug}/check-runs/${id}`)
+  if (!checkRun.data) {
+    return { text: `Could not resolve ${id} in ${slug}: not a workflow run and not a check-run. ${checkRun.error ?? ""}` }
+  }
 
-    const annotations = await api<Array<{ annotation_level?: string; message?: string; path?: string; start_line?: number; title?: string }>>(
-      `repos/${owner}/${repoName}/check-runs/${checkRun.id}/annotations`
+  // External app check-runs (codecov, orca, …) belong to no workflow run: their
+  // own output is the only answer that exists.
+  if (!isGitHubActionsApp(checkRun.data)) {
+    return { external: true, text: await describeCheckRun(checkRun.data, slug, api) }
+  }
+
+  const fromJobLink = await runIdFromJobLink(checkRun.data, slug, api)
+  if (fromJobLink) return runIdAnswer(fromJobLink, "check-run job link")
+
+  const suiteId = checkRun.data.check_suite?.id
+  if (suiteId) {
+    const suiteRuns = await api<{ check_runs?: { details_url?: string; html_url?: string }[] }>(
+      `repos/${slug}/check-suites/${suiteId}/check-runs`
     )
-    if (annotations.data && Array.isArray(annotations.data) && annotations.data.length > 0) {
-      parts.push("\nAnnotations:")
-      for (const a of annotations.data) {
-        const loc = a.path ? `${a.path}${a.start_line !== undefined ? `:${a.start_line}` : ""}` : ""
-        parts.push(`- [${a.annotation_level ?? "notice"}] ${loc} ${a.message ?? ""}`)
-        if (a.title) parts.push(`  ${a.title}`)
-      }
+    const runs = suiteRuns.data?.check_runs ?? []
+    for (const cr of runs) {
+      // oxlint-disable-next-line no-await-in-loop -- candidates are tried in order
+      const resolved = await runIdFromJobLink(cr, slug, api)
+      if (resolved) return runIdAnswer(resolved, "sibling check-run in the same suite")
     }
-
-    return parts.join("\n")
   }
 
-  // 0. If the URL contains an explicit job ID, return only that job.
-  if (explicitJobId) {
-    if (jq) return await fetchJq(id, explicitJobId)
-    const jobOutput = await fetchJob(explicitJobId)
-    if (!jobOutput) {
-      return `Could not fetch job ${explicitJobId} for ${owner}/${repoName}. It may not exist or you may lack permissions.`
-    }
-    if (jobOutput.startsWith("gh run view")) {
-      return jobOutput
-    }
-    return `Job ${explicitJobId} for ${owner}/${repoName}\n${"=".repeat(60)}\n${jobOutput}`
-  }
-
-  // 1. Try treating the ID as a run_id first.
-  let runView = await tryRunView(id)
-
-  if (runView === undefined || (typeof runView === "string" && runView.includes("HTTP 404"))) {
-    // 2. Not a run_id — treat as check_run_id.
-    const checkRun = await api<{
-      app?: { name?: string; slug?: string }
-      check_suite?: { id?: number }
-      conclusion?: string
-      details_url?: string
-      html_url?: string
-      id: number
-      name?: string
-      output?: { summary?: string; text?: string; title?: string }
-      status?: string
-      url?: string
-    }>(`repos/${owner}/${repoName}/check-runs/${id}`)
-    if (!checkRun.data) {
-      return `Could not fetch check-run ${id} for ${owner}/${repoName}. ${checkRun.error ?? ""}`
-    }
-
-    // External app check-runs (codecov, orca, etc.) don't belong to a GitHub Actions workflow run.
-    // Return their own output directly.
-    if (!isGitHubActionsApp(checkRun.data)) {
-      return fetchCheckRunOutput(checkRun.data)
-    }
-
-    // GitHub Actions check-run: resolve to parent workflow run.
-    const resolvedRunId = await resolveCheckRunToRunId(checkRun.data)
-    if (resolvedRunId) {
-      runView = await tryRunView(resolvedRunId)
-      if (runView && !runView.startsWith("gh run view")) {
-        const header = `Resolved check_run ${id} to workflow run ${resolvedRunId} for ${owner}/${repoName}\n${"=".repeat(60)}\n`
-        if (mode === "metadata") {
-          if (jq) return header + (await fetchJq(resolvedRunId))
-          return header + runView
-        }
-        return header + (await fetchLogs(resolvedRunId))
-      }
-    }
-
-    // Fallback: scan the check suite for any job link.
-    if (!resolvedRunId && checkRun.data.check_suite?.id) {
-      const suiteId = checkRun.data.check_suite.id
-      const suiteRuns = await api<{ check_runs?: Array<{ details_url?: string; html_url?: string }> }>(
-        `repos/${owner}/${repoName}/check-suites/${suiteId}/check-runs`
-      )
-      if (suiteRuns.data && Array.isArray(suiteRuns.data.check_runs)) {
-        for (const cr of suiteRuns.data.check_runs) {
-          const fallbackRunId = await resolveCheckRunToRunId(cr)
-          if (fallbackRunId) {
-            const view = await tryRunView(fallbackRunId)
-            if (view && !view.startsWith("gh run view")) {
-              const header = `Resolved check_run ${id} to workflow run ${fallbackRunId} for ${owner}/${repoName}\n${"=".repeat(60)}\n`
-              if (mode === "metadata") {
-                if (jq) return header + (await fetchJq(fallbackRunId))
-                return header + view
-              }
-              return header + (await fetchLogs(fallbackRunId))
-            }
-          }
-        }
-      }
-    }
-
-    // Final fallback: search recent runs by check_run name.
-    if (!resolvedRunId && checkRun.data.name) {
-      const checkName = checkRun.data.name
-      const runs = await listRuns()
-      for (const run of runs) {
-        const runDetail = await api<{ databaseId?: number }>(
-          `repos/${owner}/${repoName}/actions/runs/${run.databaseId}`
+  const checkName = checkRun.data.name
+  if (checkName) {
+    const runs = await listRuns(slug, { branch, limit, workflow }, ctx)
+    for (const run of runs) {
+      // oxlint-disable-next-line no-await-in-loop -- candidates are tried in order
+      const jobs = await api<{ jobs?: { id: number }[] }>(`repos/${slug}/actions/runs/${run.databaseId}/jobs`)
+      for (const job of jobs.data?.jobs ?? []) {
+        // oxlint-disable-next-line no-await-in-loop -- candidates are tried in order
+        const jobDetail = await api<{ check_runs?: { id: number; name?: string }[] }>(
+          `repos/${slug}/actions/jobs/${job.id}`
         )
-        if (!runDetail.data) continue
-        const jobs = await api<{ jobs?: Array<{ id: number }> }>(
-          `repos/${owner}/${repoName}/actions/runs/${run.databaseId}/jobs`
-        )
-        if (!jobs.data || !Array.isArray(jobs.data.jobs)) continue
-        for (const job of jobs.data.jobs) {
-          const jobDetail = await api<{ check_runs?: Array<{ id: number; name?: string }> }>(
-            `repos/${owner}/${repoName}/actions/jobs/${job.id}`
-          )
-          if (jobDetail.data && Array.isArray(jobDetail.data.check_runs)) {
-            const match = jobDetail.data.check_runs.find(
-              (cr) => String(cr.id) === id || cr.name === checkName
-            )
-            if (match) {
-              const header = `Resolved check_run ${id} to workflow run ${run.databaseId} for ${owner}/${repoName}\n${"=".repeat(60)}\n`
-              if (mode === "metadata") {
-                if (jq) return header + (await fetchJq(String(run.databaseId)))
-                const view = await tryRunView(String(run.databaseId))
-                return header + (view ?? "")
-              }
-              return header + (await fetchLogs(String(run.databaseId)))
-            }
-          }
-        }
+        const match = jobDetail.data?.check_runs?.find((cr) => String(cr.id) === id || cr.name === checkName)
+        if (match) return runIdAnswer(String(run.databaseId), `matched check-run name "${checkName}"`)
       }
     }
-
-    return `Could not resolve check_run ${id} to a workflow run for ${owner}/${repoName}. It may be an external app check-run or the run was deleted.`
   }
 
-  // 3. ID was already a valid run_id.
-  if (typeof runView === "string" && runView.startsWith("gh run view")) {
-    return runView
+  return {
+    text: `Could not resolve check-run ${id} in ${slug} to a workflow run. It may have been deleted, or belong to a workflow run older than the last ${limit ?? 10} runs — raise \`limit\`, or narrow with \`branch\`/\`workflow\`.`,
+  }
+}
+
+/** The job link on a check-run points at /runs/<id>/job/<id>; the jobs API
+ *  turns that into a run ID. This is the only reliable check-run → run hop. */
+async function runIdFromJobLink(
+  checkRun: { details_url?: string; html_url?: string },
+  slug: string,
+  api: GhApi
+): Promise<string | undefined> {
+  const jobUrl = checkRun.html_url ?? checkRun.details_url ?? ""
+  const jobMatch = jobUrl.match(/\/runs\/(\d+)\/jobs?\/(\d+)$/)
+  if (!jobMatch) return undefined
+  const jobDetail = await api<{ run_id?: number }>(`repos/${slug}/actions/jobs/${jobMatch[2]}`)
+  return jobDetail.data?.run_id ? String(jobDetail.data.run_id) : undefined
+}
+
+async function listRuns(
+  slug: string,
+  opts: { branch?: string; limit?: number; workflow?: string },
+  ctx: ToolContext
+): Promise<{ databaseId: number }[]> {
+  const args = [
+    "run",
+    "list",
+    "--repo",
+    slug,
+    "--limit",
+    String(opts.limit ?? 10),
+    "--json",
+    "databaseId,workflowDatabaseId,headBranch,name,displayTitle,status,conclusion,createdAt,url",
+  ]
+  if (opts.branch) args.push("--branch", opts.branch)
+  if (opts.workflow) args.push("--workflow", opts.workflow)
+  const { code, stdout } = await ghText(args, ctx)
+  if (code !== 0) return []
+  try {
+    return JSON.parse(stdout) as { databaseId: number }[]
+  } catch {
+    return []
+  }
+}
+
+/** External check-runs have no workflow run, so their own report is the answer. */
+async function describeCheckRun(
+  checkRun: {
+    app?: { name?: string; slug?: string }
+    conclusion?: string
+    details_url?: string
+    html_url?: string
+    id: number
+    name?: string
+    output?: { summary?: string; text?: string; title?: string }
+    status?: string
+    url?: string
+  },
+  slug: string,
+  api: GhApi
+): Promise<string> {
+  const parts: string[] = []
+  parts.push(`${checkRun.name} (check-run ${checkRun.id}) — external app, no workflow run to resolve`)
+  parts.push(`Status: ${checkRun.status ?? "unknown"} | Conclusion: ${checkRun.conclusion ?? "unknown"}`)
+  parts.push(`App: ${checkRun.app?.name ?? "unknown"} (${checkRun.app?.slug ?? "unknown"})`)
+  parts.push(`URL: ${checkRun.html_url ?? checkRun.details_url ?? checkRun.url}`)
+  if (checkRun.output) {
+    const { title, summary, text } = checkRun.output
+    if (title) parts.push(`\nTitle: ${title}`)
+    if (summary) parts.push(`\nSummary:\n${summary}`)
+    if (text) parts.push(`\nDetails:\n${text}`)
   }
 
-  if (mode === "metadata") {
-    if (jq) return await fetchJq(id)
-    return `Workflow run ${id} for ${owner}/${repoName}\n${"=".repeat(60)}\n${runView}`
+  const annotations = await api<{ annotation_level?: string; message?: string; path?: string; start_line?: number; title?: string }[]>(
+    `repos/${slug}/check-runs/${checkRun.id}/annotations`
+  )
+  if (Array.isArray(annotations.data) && annotations.data.length > 0) {
+    parts.push("\nAnnotations:")
+    for (const a of annotations.data) {
+      const loc = a.path ? `${a.path}${a.start_line === undefined ? "" : `:${a.start_line}`}` : ""
+      parts.push(`- [${a.annotation_level ?? "notice"}] ${loc} ${a.message ?? ""}`)
+      if (a.title) parts.push(`  ${a.title}`)
+    }
   }
 
-  return `Workflow run ${id} for ${owner}/${repoName}\n${"=".repeat(60)}\n${await fetchLogs(id)}`
+  return parts.join("\n")
 }

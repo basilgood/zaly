@@ -360,3 +360,22 @@ describe("process streams", () => {
     expect(transform).toHaveBeenCalledTimes(2)
   })
 })
+
+describe("stdin to a child that exits early", () => {
+  // `jq` with a syntax error exits before reading stdin; writing a large
+  // payload then hits EPIPE, which without a listener on the child's stdin is
+  // an uncaught exception that crashes the whole process.
+  test("large stdin does not throw when the child rejects it", async () => {
+    const payload = "x".repeat(8 * 1024 * 1024)
+    const proc = new Spawn("jq", ["-c", "["], { stderr: false, stdin: payload, stdout: false })
+    const result = await proc.result
+    expect(result.code).toBe(3)
+  }, 60_000)
+
+  test("write() after early exit does not throw", async () => {
+    const proc = new Spawn("jq", ["-c", "["], { keepStdinOpen: true, stderr: false, stdout: false })
+    await proc.result
+    expect(() => proc.write("late")).not.toThrow()
+    proc.closeStdin()
+  }, 60_000)
+})
