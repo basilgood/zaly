@@ -472,14 +472,15 @@ export function formatFileUsage(files: FileUsage[]): string;
 export function formatTokenStats(s: TokenStats, indent?: number): string;
 
 // @public (undocumented)
-export type GhRunTool = typeof ghRunTool;
+export type GhCheckRunTool = typeof ghCheckRunTool;
 
 // @public (undocumented)
-export type GhRunToolMeta = {
+export type GhCheckRunToolMeta = {
+    runId?: string;
     code: number;
     durationMs: number;
-    mode: string;
     ok: boolean;
+    resolved?: string;
     truncated?: {
         bytes: number;
         hint: string;

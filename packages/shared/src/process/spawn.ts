@@ -185,6 +185,17 @@ export class Spawn<O = Buffer, E = Buffer> {
       this.#finalize({ code: code ?? -1, signal: signal ?? undefined })
     })
 
+    if (this.child.stdin) {
+      // A child that rejects its input exits before consuming it (e.g. `jq`
+      // with an invalid filter). The pipe closes, and without a listener the
+      // resulting EPIPE is an uncaught exception that takes the process down.
+      // Registered once, not per write: writes are best-effort and the exit
+      // code already tells the caller what happened.
+      this.child.stdin.on("error", () => {
+        /* EPIPE / ECONNRESET — child closed stdin early */
+      })
+    }
+
     if (opts.stdin !== undefined && this.child.stdin) {
       this.child.stdin.end(opts.stdin)
     }
