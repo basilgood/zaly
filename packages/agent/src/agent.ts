@@ -824,12 +824,10 @@ export class Agent extends Emitter<AgentEvents> {
    *  cwd, an abort signal scoped to the in-flight stream, and the
    *  long-running spawn registry are all surfaced here. */
   async #toolContext(): Promise<ToolContext> {
-    const masker = await this.#ctx.masker()
     return {
       agent: this,
       bash: this.#opts.bash,
       cwd: this.cwd,
-      isMasked: (msgId: string, partIdx?: number) => masker?.isMasked(msgId, partIdx) ?? false,
       messages: this.session.messages,
       need: (scope, input) => this.#need(scope, input),
       perms: await this.ctx.permissions(),

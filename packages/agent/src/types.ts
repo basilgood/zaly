@@ -74,7 +74,6 @@ declare module "@zaly/ai" {
      *  Scope names autocomplete from the `PermissionScopes` interface;
      *  add your own via declaration merging. */
     need?: <S extends PermissionScope>(scope: S, input: PermissionScopes[S]) => Promise<void>
-    isMasked?: (msgId: string, partIdx?: number) => boolean
   }
 }
 
@@ -107,7 +106,7 @@ export interface AgentInit extends Omit<
 
 /** Snapshot of context-window pressure. Computed by `agent.pressure`
  *  from the most recent step's usage and the model's declared context
- *  limit. Consumers (notifier, masker) escalate behavior on `level`
+ *  limit. Consumers (notifier) escalate behavior on `level`
  *  rises and reset on `level === 0` (e.g. after compaction). */
 export interface ContextPressure {
   /** Cumulative tokens occupying the context window — uncached input
@@ -230,16 +229,6 @@ export interface AgentOptions extends CollectOptions {
    *  while keeping the notifier active. */
   notify?: boolean | NotifyOptions
 
-  /** Tool-result masking. When enabled, the agent rewrites older
-   *  re-callable tool results (`read`, `fetch`, …) to compact stubs on
-   *  the way to the provider, freeing context without touching the
-   *  session DAG. Once a message is stamped, the stamp is durable for
-   *  the agent's lifetime — see `Masker` for the cache-stability rules.
-   *
-   *  Defaults to enabled with the standard tuning. Pass
-   *  `{ enabled: false }` to disable, or an options object to tune. */
-  mask?: MaybeGetter<MaskerOptions>
-
   // ── Recovery ───────────────────────────────────────────────────────
   /** Resolver for `ask` permission verdicts. The agent invokes this
    *  with the scope / input / reason / suggestions; resolve `true` to
@@ -250,6 +239,15 @@ export interface AgentOptions extends CollectOptions {
   allow?: (req: PermissionRequest) => Promise<boolean>
 
   compaction?: MaybeGetter<Partial<CompactionOptions>>
+  /** Tool-result masking. When enabled, the agent rewrites older
+   *  re-callable tool results on the way to the provider as `<elided>`
+   *  digest stubs (path, range, mtime, exit code, status, transcript
+   *  line) — facts only, no instructions. Frees context without touching
+   *  the session DAG. See `Masker` for the cache-stability rules.
+   *
+   *  Defaults to enabled with the standard tuning. Pass
+   *  `{ enabled: false }` to disable, or an options object to tune. */
+  mask?: MaybeGetter<MaskerOptions>
   /** Override the default `bash` command used by the `bash` tool. */
   bash?: string[]
 

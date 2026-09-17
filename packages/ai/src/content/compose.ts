@@ -29,7 +29,7 @@ import { inlineFile } from "./part.ts"
 /** Drop every attachment kind (image, pdf, audio, video). Use when
  *  forwarding to a text-only model and you genuinely don't want any
  *  reference to the attachment in the resulting content (logs,
- *  persistence, masked replays). For "model can't take this kind, but
+ *  persistence, replays). For "model can't take this kind, but
  *  the model should know an attachment was here", prefer
  *  `attachmentToMeta(...)`. */
 export function dropAttachments() {

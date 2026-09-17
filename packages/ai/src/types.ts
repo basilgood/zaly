@@ -155,7 +155,7 @@ export type ToolResultPart<N extends string = string, M extends object = object>
    *  this result in the message list so other tools and the TUI can
    *  inspect it later (e.g. file freshness derives the most recent
    *  observed `mtime` for a path by scanning these). Disappears with the
-   *  message itself on compaction or masking — that's the point: when
+   *  message itself on compaction — that's the point: when
    *  the conversation no longer contains the read, the model genuinely
    *  hasn't seen the file, and write/edit will demand a re-read.
    *  ``` */
