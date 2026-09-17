@@ -1,5 +1,98 @@
 # Changelog
 
+## [0.0.7](https://github.com/basilgood/zaly/compare/cli-v0.0.6...cli-v0.0.7) (2026-09-17)
+
+
+### 🚀 Enhancements
+
+* **agent/masking:** add mask checkpoints to session so that session resume start with roughly the same masking state ([fa4a6c2](https://github.com/basilgood/zaly/commit/fa4a6c24b14ee7cd0c0ab9f54071fe34536c791a))
+* **agent:** tell the main agent where its session transcript lives ([9d56cd4](https://github.com/basilgood/zaly/commit/9d56cd4fb19e8c7ddbb7ebc6f6b819c32a069b26))
+* **ai/masking:** made masking configurable ([bd9d51d](https://github.com/basilgood/zaly/commit/bd9d51d900a0aac98b2397e3e258a51b574f5db1))
+* **ai/models:** model/provider overrides rework + hook up with config ([9ea2ae4](https://github.com/basilgood/zaly/commit/9ea2ae4069925bc3b22586f2dabf1ae3d1c6c831))
+* **ai:** big rework of oauth/authentication/model catalog ([a4b8cbc](https://github.com/basilgood/zaly/commit/a4b8cbc35158237e3a3e32ad0c583bb2d6b4b2e1))
+* **cli:** --version ([4609787](https://github.com/basilgood/zaly/commit/4609787a5c444416960d8920bb028ab5b4bc8b48))
+* **cli/composer:** action trigger is now `:` instead of `/` ([a045e76](https://github.com/basilgood/zaly/commit/a045e760820664bb5d180be4a7cd3857e560ea79))
+* **cli/config:** configure terminal mode: `"scrollback" | "fullscreen"` ([11234ae](https://github.com/basilgood/zaly/commit/11234ae035d56b41cfde63412ba26238c33af07d))
+* **cli/context:** added `/context` action to show a detailed breakdown of token usage ([c08706b](https://github.com/basilgood/zaly/commit/c08706b5180755b00f99a76c7b6a1373e3c022c7))
+* **cli/login:** copy url to clipboard if url could not be opened in the browser ([74b2fea](https://github.com/basilgood/zaly/commit/74b2fea34cf40861e15763df7f849906148c56d8))
+* **cli/login:** custom render for provider picker ([d9d3474](https://github.com/basilgood/zaly/commit/d9d3474e192d7fe41e987a744aafa61bc9539973))
+* **cli/login:** manage and login to providers ([8cfe784](https://github.com/basilgood/zaly/commit/8cfe784ce6e7e24a2138bd3503f88b1a73d29278))
+* **cli/model:** add env vars to model desc ([ad4c845](https://github.com/basilgood/zaly/commit/ad4c84524e11a34b070137efd9665408bd8c2cee))
+* **cli/model:** toggle all/authenticated models ([c29e28f](https://github.com/basilgood/zaly/commit/c29e28f57dd164e3c436f8d4c636254319522140))
+* **cli/plugins:** proper plugin management: /plugins /install /update ([f5f79fd](https://github.com/basilgood/zaly/commit/f5f79fd08bbc3a6f2689ad96392ca3310ff5ba90))
+* **cli/resources:** pass `plugin` to resource manager ([cdb35e3](https://github.com/basilgood/zaly/commit/cdb35e3e31c9463723641541231ed754c1e22cb0))
+* **cli/session:** session token usage breakdown in table ([895541f](https://github.com/basilgood/zaly/commit/895541f2b290ae0d17b763f34fe27e62c1d65228))
+* **cli:** added --mode to configure terminal mode ([7b73647](https://github.com/basilgood/zaly/commit/7b73647d0e4427d2ec1e2ce3fae37e9cc05b2281))
+* **cli:** added `--debug` which sets Logger level to debug instead of info ([cbb574a](https://github.com/basilgood/zaly/commit/cbb574a12e3cd21df0169d24006b7b55202f0f11))
+* **cli:** added `/session` with session info ([8189809](https://github.com/basilgood/zaly/commit/81898097cd2e729f78dfe3cb1c06143c0d67e7fc))
+* **cli:** added `ctrl-y` as default keymap to copy/yank selection or input ([abe36bc](https://github.com/basilgood/zaly/commit/abe36bcaba81a68636042409760e191a584bc46c))
+* **cli:** added copy on select ([86f0942](https://github.com/basilgood/zaly/commit/86f0942497e8666a392a77fca7806838bb53251b))
+* **cli:** AppState.loading + App.do() ([9b4733b](https://github.com/basilgood/zaly/commit/9b4733bb37c927f82ef8674008d59ed38058ecb6))
+* **cli:** enabled stack traces in debug mode `--debug` ([29ea8ad](https://github.com/basilgood/zaly/commit/29ea8ad39eac9b1d21f55bfff7b1314813814f93))
+* **cli:** more lenient error handling in config files ([47cea3c](https://github.com/basilgood/zaly/commit/47cea3c2317eab04ea608cb822b9ab2d7b277816))
+* **cli:** show effective (masked) tokens in the context panel ([1d86295](https://github.com/basilgood/zaly/commit/1d862957ff193cb02758225e4fa42d61a1bc3b96))
+* **config:** add configurable context window for masking/compaction pressure ([87e714b](https://github.com/basilgood/zaly/commit/87e714bf740443831aeeed6ee51f8be75478e709))
+* **config:** added `ui.copyOnSelect` config option ([f886a11](https://github.com/basilgood/zaly/commit/f886a114c5c252414eb0a3968c1d20b0b72717fc))
+* **config:** configurable model for compaction summarizer ([b704b3b](https://github.com/basilgood/zaly/commit/b704b3b82ee9d03746c81244565b93536ffb259d))
+* **config:** made session tree sections configurable ([e17e40e](https://github.com/basilgood/zaly/commit/e17e40e5a6c23287232b8343fcca123dbfb7442e))
+* **plugins:** debug plugins now prints tool schemas and prompts ([ca4398b](https://github.com/basilgood/zaly/commit/ca4398b79a93006567e1c043008131b1d9eb0dfa))
+* **shared/args:** added support for positional args ([f700065](https://github.com/basilgood/zaly/commit/f700065284d98e8c6eb8750cfdee1a88e55164aa))
+* **tui/prompt:** generic prompt service that integrates with the composer ([189e125](https://github.com/basilgood/zaly/commit/189e125388bedae2d549c8c0d8b2a503e9039b00))
+
+
+### 🩹 Fixes
+
+* **agent/ctx:** don't update session settings when it's not started yet ([76e0793](https://github.com/basilgood/zaly/commit/76e0793ac88f060db24637c36ce1f71a61bdbc48))
+* **agent/ctx:** use model registry and correct auth manager for loading session models ([48df4d8](https://github.com/basilgood/zaly/commit/48df4d8fb0af2d064840b7295b460f08afcd58c7))
+* **agent/masking:** include prompt/tools in token estimation for masker ([a498fef](https://github.com/basilgood/zaly/commit/a498fef6e36ccd576420118a299276a97a4ca745))
+* **agent:** wake architecture for long-running tasks — messages, not notices ([5ab31c8](https://github.com/basilgood/zaly/commit/5ab31c822137a5c6fa879220f6a59d1ffc78f512))
+* **ai/auth:** don't verify oauth tokens when listing providers/models ([8d11124](https://github.com/basilgood/zaly/commit/8d11124fde73bec2b34d8804947bed78fe7e9cbd))
+* **cli/login:** max width 80% ([72d70ee](https://github.com/basilgood/zaly/commit/72d70eef683c9987ae6431a6d920689788caee32))
+* **cli/themes:** only apply theme when set ([03974ce](https://github.com/basilgood/zaly/commit/03974ceaf6882a43e6f15d04d68699cb83906058))
+* **cli/tools:** move params to separate widget to prevent cycle ([eda53fb](https://github.com/basilgood/zaly/commit/eda53fbe191c7844f366119720954a7114bcf1d9))
+* **cli:** action trigger is now `/` again instead of `:` ([dad224f](https://github.com/basilgood/zaly/commit/dad224fde07b617c9fe31a6d9aca91bce69c8d58))
+* **cli:** correct session-tree picker title/details ([271d680](https://github.com/basilgood/zaly/commit/271d680d03685ecddd52ba23b357597035f987f9))
+* **cli:** drop unchanged-file log from read/skill renderers ([5899e96](https://github.com/basilgood/zaly/commit/5899e96448da24974fa586c52d09fbc6f04682af))
+* **cli:** make code compat with node 22 ([a054381](https://github.com/basilgood/zaly/commit/a0543819d4ab593410effab4010ee01cd227f634))
+* **cli:** strip weird GPT 5.6 empty reasoning markers ([fcf6f0e](https://github.com/basilgood/zaly/commit/fcf6f0ed5500e5f3db3c21a6a59f54a9be3dda9b))
+* converge v1-masking remnants and lost files to fork state (audit pass) ([7121506](https://github.com/basilgood/zaly/commit/7121506e4c84d5e14d249f4949df7e81bb1b670e))
+* **tui/composer:** allow whitespace aftr `:`, but not before ([70c6a09](https://github.com/basilgood/zaly/commit/70c6a09ab57d6bce8c6f0a06774e34654cb15640))
+
+
+### 💅 Refactors
+
+* **agent:** activate skills as user directives ([ddb05ef](https://github.com/basilgood/zaly/commit/ddb05ef880db107ecb736b59cd5b6df0f26dd160))
+* **ai:** ModelSpec.providerInfo =&gt; ModelSpec.provider ([51f2ce1](https://github.com/basilgood/zaly/commit/51f2ce1399394351b8561733be2e6f960cfdf1b3))
+* **ai:** more model refactoring ([108c223](https://github.com/basilgood/zaly/commit/108c2233f9c53ca9703ef006127d123a674c14be))
+* **cli/resources:** use multi select (with custom render) ([eb350ce](https://github.com/basilgood/zaly/commit/eb350ce1b33ccd6ea67b07f8d7efe5c339fc6562))
+* **plugin:** rename Plugin to LoadedPlugin to fix name collision ([e714806](https://github.com/basilgood/zaly/commit/e714806249bb7e350d7b5c55d546789f405738cf))
+
+
+### 🎨 Styles
+
+* **cli/actions:** better desc for `app.copy` depending on terminal.mouse ([ebbebee](https://github.com/basilgood/zaly/commit/ebbebeef8ff3ef1de21769eaad9a8fa10bfb5cf9))
+* **cli/actions:** rename some action fns ([aae37ad](https://github.com/basilgood/zaly/commit/aae37adde752ff08d756027e4b07b1dc835d11e3))
+* **cli:** remove env vars from model list ([dfc34e5](https://github.com/basilgood/zaly/commit/dfc34e5aeac85f8a2b670742fd157d29f9946fb0))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+* better main docs ([c71f7fd](https://github.com/basilgood/zaly/commit/c71f7fd25e25e6daa4c10b325f5b58ba8510c2af))
+* tagline ([89fdaa5](https://github.com/basilgood/zaly/commit/89fdaa54fe8269b136cc1df548dfa339c61f45c2))
+
+
+### 📦 Build
+
+* **cli:** fix `--version` ([73388ab](https://github.com/basilgood/zaly/commit/73388ab78fafe71b0bd026e37b7b8d694aed3638))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+
+
+### 🤖 CI
+
+* enable linting ([1c64a8a](https://github.com/basilgood/zaly/commit/1c64a8a4f2699cb2992522e1a634a8154129feb4))
+* fix build ([f322d6a](https://github.com/basilgood/zaly/commit/f322d6ad3b0662ef7163f4c817e524f74d3d45e5))
+
 ## [0.0.6](https://github.com/folke/zaly/compare/cli-v0.0.5...cli-v0.0.6) (2026-09-08)
 
 

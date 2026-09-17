@@ -1,5 +1,91 @@
 # Changelog
 
+## [0.0.6](https://github.com/basilgood/zaly/compare/agent-v0.0.5...agent-v0.0.6) (2026-09-17)
+
+
+### 🚀 Enhancements
+
+* **agent/bash:** token budget on inline output ([8c30f3a](https://github.com/basilgood/zaly/commit/8c30f3ae108239792873aab89ea38779778c86a5))
+* **agent/edit:** added top-level old|new text ([48dd358](https://github.com/basilgood/zaly/commit/48dd358f50ed5da40ba78f911b54c40e1337c107))
+* **agent/grep:** allow grep context up to 10. ([5422fa7](https://github.com/basilgood/zaly/commit/5422fa77c7c6f8ebca5013b41f60f1675d2afd33))
+* **agent/masking:** add mask checkpoints to session so that session resume start with roughly the same masking state ([fa4a6c2](https://github.com/basilgood/zaly/commit/fa4a6c24b14ee7cd0c0ab9f54071fe34536c791a))
+* **agent/read:** reject files over 5MB before reading ([df17cd8](https://github.com/basilgood/zaly/commit/df17cd8ef9451e257356496cfc915f7b680b6296))
+* **agent/tokens:** allow prompt to be a string[] for token estimation ([e6d4059](https://github.com/basilgood/zaly/commit/e6d405975fb78ad8c2bbd916b74e14459b98c678))
+* **agent:** add decisiveness directive to system prompt ([fc62fee](https://github.com/basilgood/zaly/commit/fc62fee6d425351f3e38612dc21f1f9fc9f973d8))
+* **agent:** add gh_fetch and gh_run tools ([a0236bc](https://github.com/basilgood/zaly/commit/a0236bc7e482b5cc404285912ab34aae1c58acca))
+* **agent:** add HTML article extraction and line filtering to fetch tool ([a307297](https://github.com/basilgood/zaly/commit/a307297b9b1226d4f9c6e400c07829d9629a7059))
+* **agent:** allow edit tool invocations with only `edits` array ([aa759c2](https://github.com/basilgood/zaly/commit/aa759c2f28e4f1e4cc5e1304673d7bea41709fef))
+* **agent:** coach-and-retry on loop detection ([9c2790e](https://github.com/basilgood/zaly/commit/9c2790e84386f2959f002637bdd672343da4ed89))
+* **agent:** restore digest-style context masking ([e592488](https://github.com/basilgood/zaly/commit/e592488579a01c76d4ebf26d28a5f59ae873a952))
+* **ai/masking:** made masking configurable ([bd9d51d](https://github.com/basilgood/zaly/commit/bd9d51d900a0aac98b2397e3e258a51b574f5db1))
+* **ai:** big rework of oauth/authentication/model catalog ([a4b8cbc](https://github.com/basilgood/zaly/commit/a4b8cbc35158237e3a3e32ad0c583bb2d6b4b2e1))
+* **cli/context:** added `/context` action to show a detailed breakdown of token usage ([c08706b](https://github.com/basilgood/zaly/commit/c08706b5180755b00f99a76c7b6a1373e3c022c7))
+* **config:** add configurable context window for masking/compaction pressure ([87e714b](https://github.com/basilgood/zaly/commit/87e714bf740443831aeeed6ee51f8be75478e709))
+* **config:** bump keepTurns for masker from 20 -&gt; 40 ([a71ddba](https://github.com/basilgood/zaly/commit/a71ddba63f67c7e9fceb698d45b7fd3bfd61b61b))
+* **config:** configurable model for compaction summarizer ([b704b3b](https://github.com/basilgood/zaly/commit/b704b3b82ee9d03746c81244565b93536ffb259d))
+
+
+### 🩹 Fixes
+
+* **agent/compaction:** use agent turns instead of user turns for frecency ([51374d5](https://github.com/basilgood/zaly/commit/51374d55af58477aeee61c6e007247c79d4008e3))
+* **agent/ctx:** don't update session settings when it's not started yet ([76e0793](https://github.com/basilgood/zaly/commit/76e0793ac88f060db24637c36ce1f71a61bdbc48))
+* **agent/ctx:** use model registry and correct auth manager for loading session models ([48df4d8](https://github.com/basilgood/zaly/commit/48df4d8fb0af2d064840b7295b460f08afcd58c7))
+* **agent/masker:** always reset threshold, since expired messsages could free up more space ([3b90603](https://github.com/basilgood/zaly/commit/3b90603cdfa5beb7f1ae3696ab7a113f6dae4879))
+* **agent/masking:** include prompt/tools in token estimation for masker ([a498fef](https://github.com/basilgood/zaly/commit/a498fef6e36ccd576420118a299276a97a4ca745))
+* **agent/masking:** measure in assistant turns ([a0031f0](https://github.com/basilgood/zaly/commit/a0031f0421c2da2469ed09663b32ac5db621c02a))
+* **agent/signal:** always clear abort controller at the end of a #loop() ([900efbc](https://github.com/basilgood/zaly/commit/900efbc010f23a480b07b7b383b687e3941701d3))
+* **agent:** anchor mask hysteresis to provider tokens and stable ids ([3f484cf](https://github.com/basilgood/zaly/commit/3f484cf92b3bb09c031584b9c96242b3aad2b798))
+* **agent:** drop empty assistant turns and omit empty content on the wire ([e2fedbe](https://github.com/basilgood/zaly/commit/e2fedbe20ba751d97d98ff9efb4a0922386c5511))
+* **agent:** drop max_lines minimum on bash tool ([4d5baec](https://github.com/basilgood/zaly/commit/4d5baecd2b119f6e216ccc59a8e0fd66bed63cbf))
+* **agent:** let the output rules yield to clarity ([5ece28d](https://github.com/basilgood/zaly/commit/5ece28d80fd6d737e7328d78224b8d854d6da703))
+* **agent:** route bash dynamic paths through the file handler ([d194343](https://github.com/basilgood/zaly/commit/d194343a4f6f1a885972a1af74d07576c2466237))
+* **agent:** split inline type specifier import breaking z lint in CI ([d023482](https://github.com/basilgood/zaly/commit/d02348293641de4eae4da4be898253205f534391))
+* **agent:** steer loop nudges and background tasks in practice ([bf09a1c](https://github.com/basilgood/zaly/commit/bf09a1cc3ff41aa771edeba414021cae1fa8e738))
+* **agent:** suggest the path itself as workspace, not its parent ([fefc2cf](https://github.com/basilgood/zaly/commit/fefc2cff1c00eb6f23355b392bceb54d44f42dd7))
+* **agent:** wake architecture for long-running tasks — messages, not notices ([5ab31c8](https://github.com/basilgood/zaly/commit/5ab31c822137a5c6fa879220f6a59d1ffc78f512))
+* **ai:** demote attachments nested in tool-result content ([bba2db6](https://github.com/basilgood/zaly/commit/bba2db631de4c0279acd712bdb2c6102b3f6d14f))
+* converge v1-masking remnants and lost files to fork state (audit pass) ([7121506](https://github.com/basilgood/zaly/commit/7121506e4c84d5e14d249f4949df7e81bb1b670e))
+* restore skills activation and session lineOf (mismatched conflict resolutions) ([2ce6783](https://github.com/basilgood/zaly/commit/2ce678305472a2ee7817ef45623df8cdbb6f7261))
+* restore typed catalog cache reads and masker option (missing d8ca0e4e replay) ([81d9ad8](https://github.com/basilgood/zaly/commit/81d9ad86dd059324be82fc433d696f361f54484d))
+
+
+### 💅 Refactors
+
+* **agent:** activate skills as user directives ([ddb05ef](https://github.com/basilgood/zaly/commit/ddb05ef880db107ecb736b59cd5b6df0f26dd160))
+* **agent:** drop freshness tracker and unchanged placeholders ([1d8706c](https://github.com/basilgood/zaly/commit/1d8706c3d2abe6a340c4ed65f8f91963f1666cff))
+* **agent:** gh_run resolves check-runs, gh_fetch owns fetching ([4373dd0](https://github.com/basilgood/zaly/commit/4373dd00d53fb33323aa89ff1ec338856dd273bb))
+* **agent:** rewrite system prompt ([199f60c](https://github.com/basilgood/zaly/commit/199f60c620820677ad311b2ce2a858253cf318ca))
+* **agent:** trim tool descriptions ([744a067](https://github.com/basilgood/zaly/commit/744a06764ea60ee7721de122f8efd54f0f39e309))
+* **ai:** more model refactoring ([108c223](https://github.com/basilgood/zaly/commit/108c2233f9c53ca9703ef006127d123a674c14be))
+* drop subagent sessionPath transcript, untrack masker harness (match fork final) ([b77dac4](https://github.com/basilgood/zaly/commit/b77dac42c5c963e5460ad1fd24a609210464a509))
+
+
+### 🎨 Styles
+
+* **agent/permissions:** skip invalid relative files for ignore patterns ([2c6505f](https://github.com/basilgood/zaly/commit/2c6505f7de8514a97d1a9275ef0fb91264b68a3d))
+* **agent:** ToolContext type for wakeup tool ([2067257](https://github.com/basilgood/zaly/commit/20672577bbaecb3eeaeec07bcedcf4ebce444fc4))
+* oxfmt ([52369c7](https://github.com/basilgood/zaly/commit/52369c7d22a000c16fb4953a9c4744c55b34652d))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+
+
+### ✅ Tests
+
+* **agent:** fixed uuidv7 test ([5c3d9e5](https://github.com/basilgood/zaly/commit/5c3d9e564b6b22be8767aa480e3279397a35ed85))
+* **agent:** more agent tests ([fbc528c](https://github.com/basilgood/zaly/commit/fbc528cb7e2c612ec818919a422185d2fd73924b))
+* **plugin:** added plugin tests ([d469e30](https://github.com/basilgood/zaly/commit/d469e3029feba1fbed2b6eb86fb79bc4f219a2ef))
+* restore agent/edit/compaction tests to match replayed source ([318580f](https://github.com/basilgood/zaly/commit/318580f624cfd161e2945f6f96c87a1dc9a136f9))
+
+
+### 📦 Build
+
+* **deps:** bump marked, ignore, typia, ttsc, knip (mirror upstream dependabot) ([71b8886](https://github.com/basilgood/zaly/commit/71b888617282229f71494aa5cfeeaf8fff650b73))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+* **typia:** fix typia codegen for Typescript 7 ([cc5b150](https://github.com/basilgood/zaly/commit/cc5b150b90aee0009cd3d7c545362f5744255fb1))
+
 ## [0.0.5](https://github.com/folke/zaly/compare/agent-v0.0.4...agent-v0.0.5) (2026-09-08)
 
 

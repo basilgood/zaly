@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.0.6](https://github.com/basilgood/zaly/compare/config-v0.0.5...config-v0.0.6) (2026-09-17)
+
+
+### 🚀 Enhancements
+
+* **agent:** add gh_fetch and gh_run tools ([a0236bc](https://github.com/basilgood/zaly/commit/a0236bc7e482b5cc404285912ab34aae1c58acca))
+* **agent:** restore digest-style context masking ([e592488](https://github.com/basilgood/zaly/commit/e592488579a01c76d4ebf26d28a5f59ae873a952))
+* **ai/masking:** made masking configurable ([bd9d51d](https://github.com/basilgood/zaly/commit/bd9d51d900a0aac98b2397e3e258a51b574f5db1))
+* **ai/models:** model/provider overrides rework + hook up with config ([9ea2ae4](https://github.com/basilgood/zaly/commit/9ea2ae4069925bc3b22586f2dabf1ae3d1c6c831))
+* **ai:** big rework of oauth/authentication/model catalog ([a4b8cbc](https://github.com/basilgood/zaly/commit/a4b8cbc35158237e3a3e32ad0c583bb2d6b4b2e1))
+* **cli/config:** configure terminal mode: `"scrollback" | "fullscreen"` ([11234ae](https://github.com/basilgood/zaly/commit/11234ae035d56b41cfde63412ba26238c33af07d))
+* **cli:** more lenient error handling in config files ([47cea3c](https://github.com/basilgood/zaly/commit/47cea3c2317eab04ea608cb822b9ab2d7b277816))
+* **config/plugin:** add scope to PluginRef ([6868e73](https://github.com/basilgood/zaly/commit/6868e735939ed235aee3ab4318d963b0a7e2a84f))
+* **config:** add configurable context window for masking/compaction pressure ([87e714b](https://github.com/basilgood/zaly/commit/87e714bf740443831aeeed6ee51f8be75478e709))
+* **config:** added `ui.copyOnSelect` config option ([f886a11](https://github.com/basilgood/zaly/commit/f886a114c5c252414eb0a3968c1d20b0b72717fc))
+* **config:** bump keepTurns for masker from 20 -&gt; 40 ([a71ddba](https://github.com/basilgood/zaly/commit/a71ddba63f67c7e9fceb698d45b7fd3bfd61b61b))
+* **config:** change default terminal mode to "fullscreen" ([f58c878](https://github.com/basilgood/zaly/commit/f58c8787fca65f927d7f97781ef1b0d492ea2fc3))
+* **config:** configurable model for compaction summarizer ([b704b3b](https://github.com/basilgood/zaly/commit/b704b3b82ee9d03746c81244565b93536ffb259d))
+* **config:** made session tree sections configurable ([e17e40e](https://github.com/basilgood/zaly/commit/e17e40e5a6c23287232b8343fcca123dbfb7442e))
+
+
+### 🩹 Fixes
+
+* **schemas:** drop dead type imports from generated schema files ([e7fae61](https://github.com/basilgood/zaly/commit/e7fae61699a946029c6faac128e809f04c74576c))
+* **schemas:** suppress typia codegen unused-import ([b235aba](https://github.com/basilgood/zaly/commit/b235aba8a69736b7cbcc4bcb67b1b80ed04f5db6))
+
+
+### 🎨 Styles
+
+* oxfmt ([52369c7](https://github.com/basilgood/zaly/commit/52369c7d22a000c16fb4953a9c4744c55b34652d))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+
+
+### ✅ Tests
+
+* **config:** config tests ([6bf26c7](https://github.com/basilgood/zaly/commit/6bf26c72a885233422a58b635d8853112ee889b9))
+
+
+### 📦 Build
+
+* **deps:** bump marked, ignore, typia, ttsc, knip (mirror upstream dependabot) ([71b8886](https://github.com/basilgood/zaly/commit/71b888617282229f71494aa5cfeeaf8fff650b73))
+* fix build ([995e599](https://github.com/basilgood/zaly/commit/995e599eb4a46f3a55ece54dd0ea1f8e256f29cd))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+* **typia:** fix typia codegen for Typescript 7 ([cc5b150](https://github.com/basilgood/zaly/commit/cc5b150b90aee0009cd3d7c545362f5744255fb1))
+
 ## [0.0.5](https://github.com/folke/zaly/compare/config-v0.0.4...config-v0.0.5) (2026-09-08)
 
 

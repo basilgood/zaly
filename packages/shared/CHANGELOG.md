@@ -1,5 +1,57 @@
 # Changelog
 
+## [0.0.6](https://github.com/basilgood/zaly/compare/shared-v0.0.5...shared-v0.0.6) (2026-09-17)
+
+
+### 🚀 Enhancements
+
+* **ai/models:** model/provider overrides rework + hook up with config ([9ea2ae4](https://github.com/basilgood/zaly/commit/9ea2ae4069925bc3b22586f2dabf1ae3d1c6c831))
+* **ai:** big rework of oauth/authentication/model catalog ([a4b8cbc](https://github.com/basilgood/zaly/commit/a4b8cbc35158237e3a3e32ad0c583bb2d6b4b2e1))
+* **cli:** added `/session` with session info ([8189809](https://github.com/basilgood/zaly/commit/81898097cd2e729f78dfe3cb1c06143c0d67e7fc))
+* **cli:** more lenient error handling in config files ([47cea3c](https://github.com/basilgood/zaly/commit/47cea3c2317eab04ea608cb822b9ab2d7b277816))
+* **shared/args:** added support for positional args ([f700065](https://github.com/basilgood/zaly/commit/f700065284d98e8c6eb8750cfdee1a88e55164aa))
+* **shared/template:** added opts.helpers ([91eb019](https://github.com/basilgood/zaly/commit/91eb0190ccf4814a382a205a0cf9bbb0496a142a))
+* **tui/process:** allow disabling stdout/stderr (fix for wl-copy) ([0109f2b](https://github.com/basilgood/zaly/commit/0109f2bd9deeb1a8da9c37afa9dc66b899854ade))
+* **tui/prompt:** generic prompt service that integrates with the composer ([189e125](https://github.com/basilgood/zaly/commit/189e125388bedae2d549c8c0d8b2a503e9039b00))
+
+
+### 🩹 Fixes
+
+* restore typed catalog cache reads and masker option (missing d8ca0e4e replay) ([81d9ad8](https://github.com/basilgood/zaly/commit/81d9ad86dd059324be82fc433d696f361f54484d))
+* **shared/ansi:** handle KGP diacritic clusters for Bun in sliceAnsi and stringWidth + replace by space in stripAnsi ([74bf8a3](https://github.com/basilgood/zaly/commit/74bf8a3df7136dcfb3afe390a759461d5d465b8e))
+* **shared/types:** dont expand strings in Simplify ([ece712f](https://github.com/basilgood/zaly/commit/ece712fd2c436a2546407858f60209cc5d15eacb))
+* **shared/utils:** fixed clamp() with optional max ([06b2d79](https://github.com/basilgood/zaly/commit/06b2d79eecbbd34e1099594dc3da702806837750))
+
+
+### 💅 Refactors
+
+* **agent:** gh_run resolves check-runs, gh_fetch owns fetching ([4373dd0](https://github.com/basilgood/zaly/commit/4373dd00d53fb33323aa89ff1ec338856dd273bb))
+
+
+### 🎨 Styles
+
+* oxfmt ([52369c7](https://github.com/basilgood/zaly/commit/52369c7d22a000c16fb4953a9c4744c55b34652d))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+
+
+### ✅ Tests
+
+* **shared:** more tests ([cc53a54](https://github.com/basilgood/zaly/commit/cc53a543e424f8d30d158aea5955fc3dc408602d))
+* **shared:** more tests for shared ([2005574](https://github.com/basilgood/zaly/commit/200557469e3a1de1034776430c6433ae0d2f5709))
+* **tui:** more tui tests ([69c3d53](https://github.com/basilgood/zaly/commit/69c3d531a5e6ee29c4b35c1824a798c669b1c8ef))
+
+
+### 📦 Build
+
+* **deps:** bump marked, ignore, typia, ttsc, knip (mirror upstream dependabot) ([71b8886](https://github.com/basilgood/zaly/commit/71b888617282229f71494aa5cfeeaf8fff650b73))
+* fix build ([995e599](https://github.com/basilgood/zaly/commit/995e599eb4a46f3a55ece54dd0ea1f8e256f29cd))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+* **typia:** fix typia codegen for Typescript 7 ([cc5b150](https://github.com/basilgood/zaly/commit/cc5b150b90aee0009cd3d7c545362f5744255fb1))
+
 ## [0.0.5](https://github.com/folke/zaly/compare/shared-v0.0.4...shared-v0.0.5) (2026-09-08)
 
 

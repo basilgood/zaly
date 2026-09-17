@@ -1,5 +1,107 @@
 # Changelog
 
+## [0.0.8](https://github.com/basilgood/zaly/compare/tui-v0.0.7...tui-v0.0.8) (2026-09-17)
+
+
+### 🚀 Enhancements
+
+* **cli/composer:** action trigger is now `:` instead of `/` ([a045e76](https://github.com/basilgood/zaly/commit/a045e760820664bb5d180be4a7cd3857e560ea79))
+* **cli/login:** copy url to clipboard if url could not be opened in the browser ([74b2fea](https://github.com/basilgood/zaly/commit/74b2fea34cf40861e15763df7f849906148c56d8))
+* **cli:** added `ctrl-y` as default keymap to copy/yank selection or input ([abe36bc](https://github.com/basilgood/zaly/commit/abe36bcaba81a68636042409760e191a584bc46c))
+* **tui/actions:** propagate correct Node type in node actions ([f8a50e2](https://github.com/basilgood/zaly/commit/f8a50e2bf21393f38834b27ca10b288c4b027ef7))
+* **tui/ansi:** util method to strip ansi bg colors ([34f1cc3](https://github.com/basilgood/zaly/commit/34f1cc3f4b4cb7504996f421eb5f1abc62a17b10))
+* **tui/image:** added unicode support for KGP and better detecion with probing for unknown terminals ([6652a00](https://github.com/basilgood/zaly/commit/6652a00b9e16aa2ae31bdfea29a08bcd6f8c6644))
+* **tui/input:** added proper focus stack ([18ee5d1](https://github.com/basilgood/zaly/commit/18ee5d1479cca3022a3afab033a2f86d55eaea8c))
+* **tui/input:** input placeholder is now reactive ([0b7ee36](https://github.com/basilgood/zaly/commit/0b7ee369ab5e859fe4289950361cc4aab1f40c1f))
+* **tui/logger:** if all msg parts are strings, combine in one, so that we don't need `inspect()` ([1a75b65](https://github.com/basilgood/zaly/commit/1a75b65653d141f2e66da55621998a666a573df3))
+* **tui/markdown:** added support for Github flavored markdown alerts/admonitions ([faf2228](https://github.com/basilgood/zaly/commit/faf22280eb5a04e5e599bd8b966ca09cb5e5bcc5))
+* **tui/overlay:** added overlay.close action ([73364c3](https://github.com/basilgood/zaly/commit/73364c3a2731586777a3cdd09b6bb81d2026d0a7))
+* **tui/overlay:** horizontalAnchor and fractional positioning relative to the reference (screen/ui/stream) ([3da3598](https://github.com/basilgood/zaly/commit/3da35980db11d675ac0a2151c4edb015ea8f5ff7))
+* **tui/overlay:** overlay close event ([8cbf2ea](https://github.com/basilgood/zaly/commit/8cbf2ea45e4712de65fdc15d816e2208e4545be3))
+* **tui/picker:** added multi-select and which-key support ([0f55419](https://github.com/basilgood/zaly/commit/0f554196380291b26a0881bed6e9af63d1bf773c))
+* **tui/picker:** compacter which-key style rendering ([4586bf3](https://github.com/basilgood/zaly/commit/4586bf3b3c9f3d65bf89f97c7a155f2c12c5ee4e))
+* **tui/picker:** picker suspend/resume ([167f0ae](https://github.com/basilgood/zaly/commit/167f0ae4f505e0406c7f714f7567387cbdf0a339))
+* **tui/prompt:** generic prompt service that integrates with the composer ([189e125](https://github.com/basilgood/zaly/commit/189e125388bedae2d549c8c0d8b2a503e9039b00))
+* **tui/search:** show more indicator when more results are availble than filtered ([7de5286](https://github.com/basilgood/zaly/commit/7de5286ec5d9124df504a48b6f2db731dc726b32))
+* **tui/selection:** added selection+text event ([6d3b943](https://github.com/basilgood/zaly/commit/6d3b9431e77455e4a0daeb59714cea6e4a082820))
+* **tui/selection:** added word/line selection on double/triple click ([189ef21](https://github.com/basilgood/zaly/commit/189ef2114b48f06a7a8112dc042c2b5a09bced98))
+* **tui/selection:** selection anchoring to `"screen" | "stream"` ([6e25540](https://github.com/basilgood/zaly/commit/6e255407055aab4d66d4d1dc435e22f26754ae68))
+* **tui/selection:** selection mouse handling and rendering ([82ab417](https://github.com/basilgood/zaly/commit/82ab41799b48d0065aa7fb0373c1d9c9f5786f84))
+* **tui/surface:** keep track of render/node state screen/surface location ([d2d705d](https://github.com/basilgood/zaly/commit/d2d705d12bbdba728ee2472324eb908d27eaef9f))
+* **tui/themes:** added more themes ([b3a8a95](https://github.com/basilgood/zaly/commit/b3a8a95ff3c87e4b0d7d2264f3ba9970fcfdaaa0))
+* **tui/themes:** enabled ansi again ([a492b80](https://github.com/basilgood/zaly/commit/a492b80ec49b67be4b65a1a49b3436cc7979930f))
+* **tui/themes:** polish themes ([968ff9f](https://github.com/basilgood/zaly/commit/968ff9f9c2d13eb54fc518dfe3e074f4dbe893ff))
+* **tui/tree:** made tree items reactive ([1034da2](https://github.com/basilgood/zaly/commit/1034da2ee4af9411a905dacfcf1198a794f73fad))
+
+
+### 🩹 Fixes
+
+* **cli:** action trigger is now `/` again instead of `:` ([dad224f](https://github.com/basilgood/zaly/commit/dad224fde07b617c9fe31a6d9aca91bce69c8d58))
+* converge v1-masking remnants and lost files to fork state (audit pass) ([7121506](https://github.com/basilgood/zaly/commit/7121506e4c84d5e14d249f4949df7e81bb1b670e))
+* **schemas:** drop dead type imports from generated schema files ([e7fae61](https://github.com/basilgood/zaly/commit/e7fae61699a946029c6faac128e809f04c74576c))
+* **schemas:** suppress typia codegen unused-import ([b235aba](https://github.com/basilgood/zaly/commit/b235aba8a69736b7cbcc4bcb67b1b80ed04f5db6))
+* **tui/composer:** allow whitespace aftr `:`, but not before ([70c6a09](https://github.com/basilgood/zaly/commit/70c6a09ab57d6bce8c6f0a06774e34654cb15640))
+* **tui/inspect:** string keys for objects ([10d67ab](https://github.com/basilgood/zaly/commit/10d67abf417e47c1ba1dec69003b3643f4218b6a))
+* **tui/markdown:** pre-wrap markdown code blocks ([26afff3](https://github.com/basilgood/zaly/commit/26afff3c7340696377211a559e566b237204ec00))
+* **tui/notifier:** check notif queue after render ([308aed0](https://github.com/basilgood/zaly/commit/308aed0a36a1f56e6a830065bd55e40414fd30d8))
+* **tui/overlay:** remove from overlay when Overlay is unmounted ([491d63f](https://github.com/basilgood/zaly/commit/491d63faf4c00ca4fcae02051ce0d432c424f18b))
+* **tui/picker:** clearInput/restoreInput, both default to true ([995e9fc](https://github.com/basilgood/zaly/commit/995e9fc7ab1ef1e33735d75fe80d4f397ef9ca6d))
+* **tui/picker:** propagate correct ctx.width to child renderers ([15fea42](https://github.com/basilgood/zaly/commit/15fea429ad29853474750ee7887c4a0d0425b339))
+* **tui/picker:** when filtering in the picker, always go to best result ([83aa968](https://github.com/basilgood/zaly/commit/83aa968264ba852c187f6517cfb03b0d4959b03a))
+* **tui/reactive:** createProgressive now allows the first update ([a57cb52](https://github.com/basilgood/zaly/commit/a57cb521acea48ff2a0ef393c830e5054f2885b4))
+* **tui/renderer:** better handling of unhandled rejections and render errors ([47fc9be](https://github.com/basilgood/zaly/commit/47fc9be8485cfe49556de09bd13cfac2c35d07d1))
+* **tui/selection:** only trigger finalized selection once ([bea049e](https://github.com/basilgood/zaly/commit/bea049e2014bc48d2b929a2d71d7a97a65a96f7f))
+* **tui/select:** trigger changed event when active remains the same, but item changed ([1bb9c42](https://github.com/basilgood/zaly/commit/1bb9c42ed1ef89ff796df9c904111929e6aca791))
+* **tui/stream:** rellocate kitty images when virtual scrolling or with alt-screen ([2574af8](https://github.com/basilgood/zaly/commit/2574af83da7108caf601330222aa2c14a795feee))
+* **tui/text:** correct minContent for text() with wrap:none ([2c3ec5b](https://github.com/basilgood/zaly/commit/2c3ec5b88719da96916641261fe6d334a399c8ba))
+* **tui/tree:** wrap in widget() ([5b70fbe](https://github.com/basilgood/zaly/commit/5b70fbe950ccaffeb226fa561301adf3b693b4b1))
+* **tui:** drop stale tokyonight build script entry ([e634d5b](https://github.com/basilgood/zaly/commit/e634d5bd441ca0168733fe6d004a14b5283be8ad))
+* **tui:** make shiki worker requests reliable ([6927696](https://github.com/basilgood/zaly/commit/692769654d56c6cecf920ed041058ce185b8d4df))
+
+
+### 🔥 Performance
+
+* **tui/stream:** no need to commit rows to scrollback in alt screen mode ([6cf2b38](https://github.com/basilgood/zaly/commit/6cf2b38bec7a3afb3ea0017bd353fb7cc54e8aa9))
+
+
+### 🎨 Styles
+
+* oxfmt ([52369c7](https://github.com/basilgood/zaly/commit/52369c7d22a000c16fb4953a9c4744c55b34652d))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+
+
+### ✅ Tests
+
+* fix action trigger tests ([53a3187](https://github.com/basilgood/zaly/commit/53a318777e1b7dd06f8a2d608c73f670e441dd6a))
+* fixed tests ([427e21f](https://github.com/basilgood/zaly/commit/427e21f755f1cb581ea31dcd56ec9dbf619a8ee1))
+* new tests for bash keybindings ([51e57c7](https://github.com/basilgood/zaly/commit/51e57c7332dd91134762d76a6543626f9ba05798))
+* **shared:** more tests ([cc53a54](https://github.com/basilgood/zaly/commit/cc53a543e424f8d30d158aea5955fc3dc408602d))
+* **tui/image:** fixed kgp tests ([8a23323](https://github.com/basilgood/zaly/commit/8a2332399a03e9447eecff191f73c5971f863165))
+* **tui:** more tui tests ([69c3d53](https://github.com/basilgood/zaly/commit/69c3d531a5e6ee29c4b35c1824a798c669b1c8ef))
+
+
+### 📦 Build
+
+* **deps:** bump marked, ignore, typia, ttsc, knip (mirror upstream dependabot) ([71b8886](https://github.com/basilgood/zaly/commit/71b888617282229f71494aa5cfeeaf8fff650b73))
+* fix build ([995e599](https://github.com/basilgood/zaly/commit/995e599eb4a46f3a55ece54dd0ea1f8e256f29cd))
+* fix issues with import paths ([22d1332](https://github.com/basilgood/zaly/commit/22d1332deb897f0fceb9642be425090c71b75d05))
+* fix linting ([c19579a](https://github.com/basilgood/zaly/commit/c19579a02a436ca90673b9b66c01c9c5e9892888))
+* more build fixes ([efd92da](https://github.com/basilgood/zaly/commit/efd92da2197b631943da45c2ae463474c56d6b05))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+* only sync/build tokyonight themes when the repo exists locally. Closes [#18](https://github.com/basilgood/zaly/issues/18) ([a97385a](https://github.com/basilgood/zaly/commit/a97385a6368fedfe847b8c2b1760e03885050122))
+* **tui:** drop tokyonight theme regeneration step ([5ada642](https://github.com/basilgood/zaly/commit/5ada642068b9d799d294c184c1d71abe3fbe6722))
+* **tui:** WIP Neovim Zaly theme conversion ([a2c632c](https://github.com/basilgood/zaly/commit/a2c632c33311bd5d851349ec0da57b8db740dbb0))
+* **typia:** fix typia codegen for Typescript 7 ([cc5b150](https://github.com/basilgood/zaly/commit/cc5b150b90aee0009cd3d7c545362f5744255fb1))
+
+
+### 🤖 CI
+
+* fix build ([f322d6a](https://github.com/basilgood/zaly/commit/f322d6ad3b0662ef7163f4c817e524f74d3d45e5))
+
 ## [0.0.7](https://github.com/folke/zaly/compare/tui-v0.0.6...tui-v0.0.7) (2026-09-08)
 
 

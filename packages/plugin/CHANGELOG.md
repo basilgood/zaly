@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.0.5](https://github.com/basilgood/zaly/compare/plugin-v0.0.4...plugin-v0.0.5) (2026-09-17)
+
+
+### 🚀 Enhancements
+
+* **ai:** big rework of oauth/authentication/model catalog ([a4b8cbc](https://github.com/basilgood/zaly/commit/a4b8cbc35158237e3a3e32ad0c583bb2d6b4b2e1))
+* **cli/context:** added `/context` action to show a detailed breakdown of token usage ([c08706b](https://github.com/basilgood/zaly/commit/c08706b5180755b00f99a76c7b6a1373e3c022c7))
+* **tui/prompt:** generic prompt service that integrates with the composer ([189e125](https://github.com/basilgood/zaly/commit/189e125388bedae2d549c8c0d8b2a503e9039b00))
+
+
+### 🩹 Fixes
+
+* **plugin:** register accepts bare ToolDef, returns Tool ([6f863af](https://github.com/basilgood/zaly/commit/6f863afc170b1b5d9f40e51adefbb5f2c04f8f69))
+
+
+### 💅 Refactors
+
+* **ai:** more model refactoring ([108c223](https://github.com/basilgood/zaly/commit/108c2233f9c53ca9703ef006127d123a674c14be))
+* **plugin:** rename Plugin to LoadedPlugin to fix name collision ([e714806](https://github.com/basilgood/zaly/commit/e714806249bb7e350d7b5c55d546789f405738cf))
+
+
+### 🎨 Styles
+
+* oxfmt ([52369c7](https://github.com/basilgood/zaly/commit/52369c7d22a000c16fb4953a9c4744c55b34652d))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+
+
+### ✅ Tests
+
+* **plugin:** added plugin tests ([d469e30](https://github.com/basilgood/zaly/commit/d469e3029feba1fbed2b6eb86fb79bc4f219a2ef))
+
+
+### 📦 Build
+
+* fix build ([995e599](https://github.com/basilgood/zaly/commit/995e599eb4a46f3a55ece54dd0ea1f8e256f29cd))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+
 ## [0.0.4](https://github.com/folke/zaly/compare/plugin-v0.0.3...plugin-v0.0.4) (2026-07-10)
 
 

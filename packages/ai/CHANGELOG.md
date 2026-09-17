@@ -1,5 +1,72 @@
 # Changelog
 
+## [0.0.7](https://github.com/basilgood/zaly/compare/ai-v0.0.6...ai-v0.0.7) (2026-09-17)
+
+
+### 🚀 Enhancements
+
+* **ai/auth:** cleanup ApiKey resolving ([244b4d2](https://github.com/basilgood/zaly/commit/244b4d22cbb98af389e153d325e02097b703740e))
+* **ai/auth:** oauth rework ([153dfcc](https://github.com/basilgood/zaly/commit/153dfcc071e7a881e2cb7ca00632c3757652f35c))
+* **ai/models:** added new GPT 5.6 Codex Models ([6cb3b50](https://github.com/basilgood/zaly/commit/6cb3b504bcebf7d4c19aee566fd92361f44a9e33))
+* **ai/models:** model/provider overrides rework + hook up with config ([9ea2ae4](https://github.com/basilgood/zaly/commit/9ea2ae4069925bc3b22586f2dabf1ae3d1c6c831))
+* **ai:** allow overrides override all ModelProvider fields ([ea84cdb](https://github.com/basilgood/zaly/commit/ea84cdb83c216bf020c6b9d9684ffb8dee24599f))
+* **ai:** big rework of oauth/authentication/model catalog ([a4b8cbc](https://github.com/basilgood/zaly/commit/a4b8cbc35158237e3a3e32ad0c583bb2d6b4b2e1))
+* **ai:** build ModelCatalog on load, not on build ([1670a0d](https://github.com/basilgood/zaly/commit/1670a0dd0b5c14864bb1c723d8dc68642c65cb84))
+* **ai:** fetch models.dev catalog on demand and cache locally ([f1a8fff](https://github.com/basilgood/zaly/commit/f1a8ffff3ba6891cba187973ae3adf958a5521bf))
+* **cli/login:** copy url to clipboard if url could not be opened in the browser ([74b2fea](https://github.com/basilgood/zaly/commit/74b2fea34cf40861e15763df7f849906148c56d8))
+* **cli/login:** custom render for provider picker ([d9d3474](https://github.com/basilgood/zaly/commit/d9d3474e192d7fe41e987a744aafa61bc9539973))
+
+
+### 🩹 Fixes
+
+* **agent:** drop empty assistant turns and omit empty content on the wire ([e2fedbe](https://github.com/basilgood/zaly/commit/e2fedbe20ba751d97d98ff9efb4a0922386c5511))
+* **ai/anthropic:** fixed anthropic model version detection ([3cda232](https://github.com/basilgood/zaly/commit/3cda232d657947d1bc9b94c9bfefa4e2b8b8e26e))
+* **ai/auth:** 5 step resolution for api key ([2adbf1c](https://github.com/basilgood/zaly/commit/2adbf1c004af84664ba69a0c7cd1183079630cdd))
+* **ai/auth:** don't verify oauth tokens when listing providers/models ([8d11124](https://github.com/basilgood/zaly/commit/8d11124fde73bec2b34d8804947bed78fe7e9cbd))
+* **ai/catalog:** check overrides for npmToApi on initial load ([98f88b7](https://github.com/basilgood/zaly/commit/98f88b7f66650c3bbe97094affa697fe5bec098f))
+* **ai/error:** some error props are not enumerable, so spreading fails. pick them manually ([0995823](https://github.com/basilgood/zaly/commit/0995823e23921bf43c437346238971bf19d8e74c))
+* **ai/model:** pass correct model context to loadModel ([ef7f55c](https://github.com/basilgood/zaly/commit/ef7f55c0a04de4f7bc3a295506570f38509eada1))
+* **ai/models:** fixed model downloads ([4db576c](https://github.com/basilgood/zaly/commit/4db576c3beabbaf9b854030127985927027de4eb))
+* **ai/overrides:** added GPT-6-astra to openai-codex ([9f48e17](https://github.com/basilgood/zaly/commit/9f48e1795203a88479e95d69e67f51185002b9f9))
+* **ai:** demote attachments nested in tool-result content ([bba2db6](https://github.com/basilgood/zaly/commit/bba2db631de4c0279acd712bdb2c6102b3f6d14f))
+* converge v1-masking remnants and lost files to fork state (audit pass) ([7121506](https://github.com/basilgood/zaly/commit/7121506e4c84d5e14d249f4949df7e81bb1b670e))
+* restore typed catalog cache reads and masker option (missing d8ca0e4e replay) ([81d9ad8](https://github.com/basilgood/zaly/commit/81d9ad86dd059324be82fc433d696f361f54484d))
+
+
+### 💅 Refactors
+
+* **ai:** ModelSpec.providerInfo =&gt; ModelSpec.provider ([51f2ce1](https://github.com/basilgood/zaly/commit/51f2ce1399394351b8561733be2e6f960cfdf1b3))
+* **ai:** more model refactoring ([108c223](https://github.com/basilgood/zaly/commit/108c2233f9c53ca9703ef006127d123a674c14be))
+
+
+### 🎨 Styles
+
+* oxfmt ([52369c7](https://github.com/basilgood/zaly/commit/52369c7d22a000c16fb4953a9c4744c55b34652d))
+
+
+### 📖 Documentation
+
+* basic docs before publishing v0 ([c9c4fc3](https://github.com/basilgood/zaly/commit/c9c4fc34e1bddae7432abec7fcc7bf1336b27999))
+
+
+### ✅ Tests
+
+* addded models loading bench ([9e2050f](https://github.com/basilgood/zaly/commit/9e2050fba80bdff6a4d5de79bd8ee9bee21aec23))
+* **ai:** ai tests ([f29943d](https://github.com/basilgood/zaly/commit/f29943dad93b932872be7c210e3f7f2063d03f41))
+* fix model override tests ([d40746e](https://github.com/basilgood/zaly/commit/d40746eb5f3b87a50dc9bfe9997e37a72cf75a41))
+
+
+### 📦 Build
+
+* fix build ([995e599](https://github.com/basilgood/zaly/commit/995e599eb4a46f3a55ece54dd0ea1f8e256f29cd))
+* fix issues with import paths ([22d1332](https://github.com/basilgood/zaly/commit/22d1332deb897f0fceb9642be425090c71b75d05))
+* Node 22.11 compat ([e69afd8](https://github.com/basilgood/zaly/commit/e69afd83a4719117ebd5e7a2a104d7503f53a18b))
+
+
+### 🤖 CI
+
+* fix build ([f322d6a](https://github.com/basilgood/zaly/commit/f322d6ad3b0662ef7163f4c817e524f74d3d45e5))
+
 ## [0.0.6](https://github.com/folke/zaly/compare/ai-v0.0.5...ai-v0.0.6) (2026-09-08)
 
 
