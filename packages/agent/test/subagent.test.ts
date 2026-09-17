@@ -2,8 +2,7 @@ import type { MetaPart, Streamable, ToolContext, ToolResult } from "@zaly/ai"
 import type { Agent } from "../src/agent.ts"
 import type { SubagentMeta } from "../src/tools/subagent.ts"
 
-import { existsSync, readFileSync, rmSync } from "node:fs"
-import { afterEach, describe, expect, test } from "vitest"
+import { describe, expect, test } from "vitest"
 import { subagentTool } from "../src/tools/subagent.ts"
 import { loadAgent, mockModel } from "./helpers.ts"
 
@@ -19,11 +18,6 @@ async function runToCompletion(s: Streamable): Promise<ToolResult & { running: b
   await s.done
   return s.poll()
 }
-
-const tmpFiles: string[] = []
-afterEach(() => {
-  for (const f of tmpFiles.splice(0)) if (existsSync(f)) rmSync(f, { force: true })
-})
 
 const buildParent = async (childScripts: ReturnType<typeof okStop>[]): Promise<Agent> =>
   loadAgent({ model: mockModel(childScripts) })
@@ -45,36 +39,14 @@ describe("subagent tool", () => {
     const meta = result.content.find((p): p is MetaPart => p.type === "meta")
     if (!meta) throw new Error("expected meta part")
     expect(meta.tag).toBe("subagent")
-    const data = meta.data as { id: string; depth: number; sessionPath: string; stop?: string }
+    const data = meta.data as { id: string; depth: number; stop?: string }
     expect(data.depth).toBe(1) // parent.depth=0, child.depth=1
     expect(data.id).toMatch(/^[0-9a-f]{8}-/)
     expect(data.stop).toBe("natural")
-    tmpFiles.push(data.sessionPath)
 
     const text = result.content.find((p) => p.type === "text")
     if (!text) throw new Error("expected text part")
     expect(text.text).toBe("the answer is 42")
-  })
-
-  test("session JSONL file is written and contains the child's messages", async () => {
-    const parent = await buildParent([okStop("hello from child")])
-    const s = (await subagentTool.call(
-      { description: "test session persistence", prompt: "p", task: "hi" },
-      ctxFor(parent)
-    )) as Streamable
-    const result = await runToCompletion(s)
-
-    if (typeof result.content === "string") throw new Error("expected parts")
-    const meta = result.content.find((p): p is MetaPart => p.type === "meta")
-    const data = meta!.data as { sessionPath: string }
-    tmpFiles.push(data.sessionPath)
-
-    expect(existsSync(data.sessionPath)).toBe(true)
-    const lines = readFileSync(data.sessionPath, "utf8").trim().split("\n")
-    // session-start + user (the task) + assistant (the reply) = at least 3 records
-    expect(lines.length).toBeGreaterThanOrEqual(3)
-    const types = lines.map((l) => JSON.parse(l).type as string)
-    expect(types).toContain("session-start")
   })
 
   test("child inherits parent.tools, minus subagent at depth limit", async () => {
@@ -105,9 +77,8 @@ describe("subagent tool", () => {
     const result = await runToCompletion(s)
     if (typeof result.content === "string") throw new Error("expected parts")
     const meta = result.content.find((p): p is MetaPart => p.type === "meta")
-    const data = meta!.data as { sessionPath: string; depth: number }
+    const data = meta!.data as { depth: number }
     expect(data.depth).toBe(1)
-    tmpFiles.push(data.sessionPath)
   })
 
   test("MISSING_TOOL_CONTEXT when ctx.agent is absent", async () => {
@@ -143,7 +114,7 @@ describe("subagent tool", () => {
     const final = s.poll()
     if (typeof final.content === "string") throw new Error("expected parts")
     const meta = final.content.find((p): p is MetaPart => p.type === "meta")
-    tmpFiles.push((meta!.data as { sessionPath: string }).sessionPath)
+    expect(meta).toBeDefined()
   })
 })
 
@@ -164,8 +135,7 @@ describe("subagent tool — depth limit", () => {
     const result = await runToCompletion(s)
     if (typeof result.content === "string") throw new Error("expected parts")
     const meta = result.content.find((p): p is MetaPart => p.type === "meta")
-    const data = meta!.data as { depth: number; sessionPath: string }
+    const data = meta!.data as { depth: number }
     expect(data.depth).toBe(1)
-    tmpFiles.push(data.sessionPath)
   })
 })
