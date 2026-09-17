@@ -4,14 +4,153 @@
 
 ```ts
 
+// @public
+export interface AliasNode {
+    anchor: string;
+    // (undocumented)
+    kind: 'alias';
+}
+
+// @public
+export const COLLECTION_STYLE: {
+    readonly BLOCK: 1;
+    readonly FLOW: 2;
+};
+
+// @public
+export type CollectionStyle = typeof COLLECTION_STYLE[keyof typeof COLLECTION_STYLE];
+
+// @public
+export interface ConstructorOptions {
+    // (undocumented)
+    filename?: string;
+    json?: boolean;
+    maxAliases?: number;
+    maxTotalMergeKeys?: number;
+    schema?: Schema;
+    source: string;
+}
+
+// @public
+export interface Document {
+    contents: Node | null;
+    // (undocumented)
+    directives: DocumentDirective[];
+    explicitEnd?: boolean;
+    explicitStart?: boolean;
+}
+
+// @public
+export type DocumentDirective = {
+    kind: 'yaml';
+    version: string;
+} | {
+    kind: 'tag';
+    handle: string;
+    prefix: string;
+};
+
+// @public
+export interface DumpOptions extends Omit<PresenterOptions, 'schema'> {
+    flowLevel?: number;
+    noRefs?: boolean;
+    schema?: Schema;
+    skipInvalid?: boolean;
+    // @deprecated
+    sortKeys?: boolean | ((a: any, b: any) => number);
+    transform?: (documents: Document[]) => void;
+}
+
+// @public
+export interface LoadOptions extends ParserOptions, Omit<ConstructorOptions, 'source'> {}
+
+// @public
+export interface MappingNode extends NodeBase {
+    // (undocumented)
+    items: Array<{
+        key: Node;
+        value: Node;
+    }>;
+    // (undocumented)
+    kind: 'mapping';
+    // (undocumented)
+    style: CollectionStyle;
+}
+
+// @public
+export interface MappingTagDefinition<Carrier = unknown, Result = Carrier> extends Required<MappingTagOptions<Carrier, Result>> {
+    carrierIsResult: boolean;
+    implicit: false;
+    nodeKind: 'mapping';
+    tagName: string;
+}
+
+// @public
+export interface MappingTagOptions<Carrier, Result = Carrier> {
+    addPair: (carrier: Carrier, key: unknown, value: unknown) => string;
+    create: (tagName: string) => Carrier;
+    finalize?: (carrier: Carrier) => Result;
+    get: (result: Result, key: unknown) => unknown;
+    has: (carrier: Carrier, key: unknown) => boolean;
+    identify: (data: any) => boolean;
+    keys: (result: Result) => Iterable<unknown>;
+    matchByTagPrefix?: boolean;
+    represent?: (data: any) => Map<unknown, unknown>;
+    representTagName?: (data: any) => string;
+}
+
+// @public
+export type Node = ScalarNode | SequenceNode | MappingNode | AliasNode;
+
+// @public
+export interface NodeBase {
+    // (undocumented)
+    anchor?: string;
+    // (undocumented)
+    blankBefore?: number;
+    // (undocumented)
+    comment?: string;
+    // (undocumented)
+    commentAfter?: string;
+    commentBefore?: string;
+    tag: string;
+    tagged: boolean;
+}
+
+// @public
+export const NOT_RESOLVED: unique symbol;
+
 // @public (undocumented)
 export function parseFrontmatter(content: string, opts?: YamlParseOpts): Promise<{
     fm: Record<string, unknown>;
     body: string;
 }>;
 
+// @public
+export interface ParserOptions {
+    filename?: string;
+    maxDepth?: number;
+}
+
 // @public (undocumented)
 export function parseYaml(yaml: string, opts?: YamlParseOpts): Promise<unknown>;
+
+// @public
+export interface PresenterOptions {
+    flowBracketPadding?: boolean;
+    flowSkipColonSpace?: boolean;
+    flowSkipCommaSpace?: boolean;
+    forceQuotes?: boolean;
+    indent?: number;
+    lineWidth?: number;
+    quoteFlowKeys?: boolean;
+    quoteStyle?: 'single' | 'double';
+    scalarStyleRules?: readonly ScalarStyleRule[];
+    schema: Schema;
+    seqInlineFirst?: boolean;
+    seqNoIndent?: boolean;
+    tagBeforeAnchor?: boolean;
+}
 
 // @public (undocumented)
 export function repairYaml(yaml: string): string;
@@ -19,8 +158,132 @@ export function repairYaml(yaml: string): string;
 // @public (undocumented)
 export const safeParseYaml: (yaml: string, opts?: YamlParseOpts | undefined) => Promise<unknown>;
 
+// @public
+export const SCALAR_STYLE: {
+    readonly PLAIN: 1;
+    readonly SINGLE_QUOTED: 2;
+    readonly DOUBLE_QUOTED: 3;
+    readonly LITERAL_BLOCK: 4;
+    readonly FOLDED_BLOCK: 5;
+};
+
+// @public
+export interface ScalarLayout {
+    allowedStylesMask: number;
+    // (undocumented)
+    readonly flowOnly: boolean;
+    // (undocumented)
+    readonly isKey: boolean;
+    // (undocumented)
+    readonly level: number;
+    // (undocumented)
+    readonly node: Readonly<ScalarNode>;
+    // (undocumented)
+    readonly parent: Readonly<Node> | null;
+    // (undocumented)
+    readonly presenterOptions: Readonly<Required<PresenterOptions>>;
+    // (undocumented)
+    readonly shiftOfContent: number;
+    // (undocumented)
+    readonly shiftOfFirstLine: number;
+    // (undocumented)
+    readonly shiftOfParent: number;
+    style: ScalarStyle;
+}
+
+// @public
+export interface ScalarNode extends NodeBase {
+    // (undocumented)
+    kind: 'scalar';
+    style: ScalarStyle;
+    // (undocumented)
+    value: string;
+}
+
+// @public
+export type ScalarStyle = typeof SCALAR_STYLE[keyof typeof SCALAR_STYLE];
+
+// @public
+export type ScalarStyleRule = (layout: ScalarLayout) => void;
+
+// @public
+export interface ScalarTagDefinition<Result = unknown> extends Required<ScalarTagOptions<Result>> {
+    nodeKind: 'scalar';
+    tagName: string;
+}
+
+// @public
+export interface ScalarTagOptions<Result> {
+    identify: (data: any) => boolean;
+    implicit?: boolean;
+    implicitFirstChars?: readonly string[] | null;
+    matchByTagPrefix?: boolean;
+    represent?: (data: any) => string;
+    representTagName?: (data: any) => string;
+    resolve: (source: string, isExplicit: boolean, tagName: string) => Result | typeof NOT_RESOLVED;
+}
+
+// @public
+export class Schema {
+    constructor(tags: readonly TagDefinition[]);
+    // @internal (undocumented)
+    readonly defaultMappingTag: MappingTagDefinition | undefined;
+    // @internal
+    readonly defaultScalarTag: ScalarTagDefinition;
+    // @internal
+    readonly defaultSequenceTag: SequenceTagDefinition | undefined;
+    // @internal (undocumented)
+    readonly implicitScalarTags: readonly ScalarTagDefinition[];
+    // @internal (undocumented)
+    lookupMappingTag(tagName: string): MappingTagDefinition | undefined;
+    // @internal (undocumented)
+    lookupScalarTag(tagName: string): ScalarTagDefinition | undefined;
+    // @internal (undocumented)
+    lookupSequenceTag(tagName: string): SequenceTagDefinition | undefined;
+    // @internal (undocumented)
+    resolveImplicitScalarTag(source: string): {
+        value: unknown;
+        tag: ScalarTagDefinition;
+    };
+    // (undocumented)
+    readonly tags: readonly TagDefinition[];
+    withTags(...tags: Array<TagDefinition | readonly TagDefinition[]>): Schema;
+}
+
+// @public
+export interface SequenceNode extends NodeBase {
+    // (undocumented)
+    items: Node[];
+    // (undocumented)
+    kind: 'sequence';
+    // (undocumented)
+    style: CollectionStyle;
+}
+
+// @public
+export interface SequenceTagDefinition<Carrier = unknown, Result = Carrier> extends Required<SequenceTagOptions<Carrier, Result>> {
+    carrierIsResult: boolean;
+    implicit: false;
+    nodeKind: 'sequence';
+    tagName: string;
+}
+
+// @public
+export interface SequenceTagOptions<Carrier, Result = Carrier> {
+    addItem: (carrier: Carrier, item: unknown, index: number) => void | string;
+    create: (tagName: string) => Carrier;
+    finalize?: (carrier: Carrier) => Result;
+    identify: (data: any) => boolean;
+    matchByTagPrefix?: boolean;
+    represent?: (data: any) => ArrayLike<unknown>;
+    representTagName?: (data: any) => string;
+}
+
 // @public (undocumented)
 export function stringifyYaml(value: unknown, opts?: YamlStringifyOpts): Promise<string>;
+
+// @public
+export type TagDefinition = ScalarTagDefinition<any> | SequenceTagDefinition<any, any> | MappingTagDefinition<any, any>;
 
 // @public (undocumented)
 export type YamlParseOpts = LoadOptions & {

@@ -4,7 +4,6 @@
 
 ```ts
 
-import * as _$_zaly_shared_logger0 from '@zaly/shared/logger';
 import { ArgsOpts } from '@zaly/shared/args';
 import { ArgsResult } from '@zaly/shared/args';
 import { BundledTheme } from 'shiki/types';

@@ -89,7 +89,9 @@ export class AuthManager {
     // (undocumented)
     get(name: string): AuthSecret | undefined;
     // (undocumented)
-    getAuth(it: ModelSpec | ModelProvider): Promise<ApiKey | undefined>;
+    getAuth(it: ModelSpec | ModelProvider, opts?: {
+        verify?: boolean;
+    }): Promise<ApiKey | undefined>;
     // (undocumented)
     static load(path: string, opts?: AuthManagerOpts): Promise<AuthManager>;
     // (undocumented)

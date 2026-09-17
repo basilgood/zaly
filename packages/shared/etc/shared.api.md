@@ -4,10 +4,10 @@
 
 ```ts
 
-import { BigIntStats } from 'fs';
-import { PathLike } from 'fs';
-import { Stats } from 'fs';
-import { StatSyncOptions } from 'fs';
+import { BigIntStats } from 'node:fs';
+import { PathLike } from 'node:fs';
+import { StatOptions } from 'node:fs';
+import { Stats } from 'node:fs';
 
 // @public (undocumented)
 export type AnyFn<A extends any[] = never[], R = unknown> = (...args: A) => R;
@@ -145,7 +145,7 @@ export const safeReadFile: (p: string) => Promise<string | undefined>;
 export const safeReadFileSync: (path: string) => string | undefined;
 
 // @public (undocumented)
-export const safeStat: (path: PathLike, options?: StatSyncOptions | undefined) => BigIntStats | Stats | undefined;
+export const safeStat: (path: PathLike, options?: StatOptions | undefined) => BigIntStats | Stats | undefined;
 
 // @public (undocumented)
 export const safeStatAsync: (p: string) => Promise<Stats | undefined>;

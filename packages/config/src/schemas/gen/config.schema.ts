@@ -1,10 +1,9 @@
+// oxlint-disable import/no-named-as-default-member
 // @ts-ignore -- type used only in the typia generic; inlined away by codegen
-import type { TypiaConfig } from "../../types.ts";
 export const ConfigSchema = {
-    version: "3.0",
     components: {
         schemas: {
-            "TypiaConfig.o1": {
+            "TypiaConfig-o1": {
                 type: "object",
                 properties: {
                     model: {
@@ -14,13 +13,13 @@ export const ConfigSchema = {
                     reasoning: {
                         type: "string",
                         "enum": [
-                            "off",
-                            "minimal",
-                            "low",
-                            "medium",
                             "high",
-                            "xhigh",
-                            "max"
+                            "low",
+                            "max",
+                            "medium",
+                            "minimal",
+                            "off",
+                            "xhigh"
                         ],
                         description: "Default reasoning effort *"
                     },
@@ -40,8 +39,8 @@ export const ConfigSchema = {
                             mode: {
                                 type: "string",
                                 "enum": [
-                                    "scrollback",
-                                    "fullscreen"
+                                    "fullscreen",
+                                    "scrollback"
                                 ],
                                 description: "scrollback: preserves terminal scrollback/search; footer scrolls away with mouse wheel because the terminal is scrolling\n/* fullscreen: alternate screen + mouse; footer stays fixed; dedicated app viewport"
                             },
@@ -76,10 +75,10 @@ export const ConfigSchema = {
                                 items: {
                                     type: "string",
                                     "enum": [
+                                        "assistant",
                                         "reasoning",
-                                        "tools",
                                         "system",
-                                        "assistant"
+                                        "tools"
                                     ]
                                 },
                                 description: "What messages to show in the session tree. Defaults to assistant, reasoning, and tools."
@@ -89,7 +88,8 @@ export const ConfigSchema = {
                                 description: "Maximum number of visible rows in the session tree."
                             }
                         },
-                        required: []
+                        required: [],
+                        additionalProperties: false
                     },
                     skills: {
                         type: "object",
@@ -107,7 +107,8 @@ export const ConfigSchema = {
                                 description: "Prefix for command actions. Defaults to `skill:`, e.g `/skill:SKILL_NAME`"
                             }
                         },
-                        required: []
+                        required: [],
+                        additionalProperties: false
                     },
                     commands: {
                         type: "object",
@@ -126,6 +127,7 @@ export const ConfigSchema = {
                             }
                         },
                         required: [],
+                        additionalProperties: false,
                         description: "Template commands *"
                     },
                     compaction: {
@@ -146,13 +148,13 @@ export const ConfigSchema = {
                             reasoning: {
                                 type: "string",
                                 "enum": [
-                                    "off",
-                                    "minimal",
-                                    "low",
-                                    "medium",
                                     "high",
-                                    "xhigh",
-                                    "max"
+                                    "low",
+                                    "max",
+                                    "medium",
+                                    "minimal",
+                                    "off",
+                                    "xhigh"
                                 ],
                                 description: "Reasoning effort for the compaction summary"
                             },
@@ -165,7 +167,8 @@ export const ConfigSchema = {
                                 description: "Threshold for automatic compaction."
                             }
                         },
-                        required: []
+                        required: [],
+                        additionalProperties: false
                     },
                     masking: {
                         type: "object",
@@ -191,7 +194,8 @@ export const ConfigSchema = {
                                 description: "Target ratio of used/limit tokens to reach by masking. Defaults to 0.5 (50%)."
                             }
                         },
-                        required: []
+                        required: [],
+                        additionalProperties: false
                     },
                     permissions: {
                         type: "object",
@@ -199,9 +203,9 @@ export const ConfigSchema = {
                             preset: {
                                 type: "string",
                                 "enum": [
-                                    "strict",
-                                    "readonly",
                                     "permissive",
+                                    "readonly",
+                                    "strict",
                                     "yolo"
                                 ],
                                 description: "Permissions preset to use. Defaults to \"permissive\"."
@@ -225,7 +229,8 @@ export const ConfigSchema = {
                                 }
                             }
                         },
-                        required: []
+                        required: [],
+                        additionalProperties: false
                     },
                     plugins: {
                         type: "array",
@@ -263,6 +268,7 @@ export const ConfigSchema = {
                             }
                         },
                         required: [],
+                        additionalProperties: false,
                         description: "System integrations and external commands used by zaly."
                     },
                     $schema: {
@@ -272,16 +278,14 @@ export const ConfigSchema = {
                         $ref: "#/components/schemas/Recordstringstringstring"
                     }
                 },
-                required: []
+                required: [],
+                additionalProperties: false
             },
             AnyTool: {
                 type: "string"
             },
             RecordstringResourceFilter: {
                 type: "object",
-                properties: {},
-                required: [],
-                description: "Construct a type with a set of properties K of type T",
                 additionalProperties: {
                     $ref: "#/components/schemas/ResourceFilter"
                 }
@@ -308,13 +312,11 @@ export const ConfigSchema = {
                         description: "When set, exclude the resources, matching these paths/globs from the plugin.\nAdd a resource type to the exclude list to disable that resource type. For example,\n`[\"skills\"]` will disable all skills from the plugin.\nExclude is applied after include."
                     }
                 },
-                required: []
+                required: [],
+                additionalProperties: false
             },
             Recordstringstringstring: {
                 type: "object",
-                properties: {},
-                required: [],
-                description: "Construct a type with a set of properties K of type T",
                 additionalProperties: {
                     oneOf: [
                         {
@@ -333,14 +335,15 @@ export const ConfigSchema = {
     },
     schema: {
         type: "array",
+        minItems: 1,
+        maxItems: 1,
         items: {
             oneOf: [
                 {
-                    $ref: "#/components/schemas/TypiaConfig.o1"
+                    $ref: "#/components/schemas/TypiaConfig-o1"
                 }
             ]
-        },
-        minItems: 1,
-        maxItems: 1
-    }
-} as import("typia").IJsonSchemaUnit<"3.0">;
+        }
+    },
+    version: "3.0"
+};

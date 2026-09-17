@@ -31,6 +31,9 @@ export type ArgsResult<T extends ArgsOpts = ArgsOpts> = ParsedArgsResult<{
 export function argsUsage(name: string, opts: ArgsOpts): string;
 
 // @public (undocumented)
+export type ParseArgOption = ParseArgsOptionsConfig[string];
+
+// @public (undocumented)
 export type ParsedArgs<T extends ParseArgsConfig> = ReturnType<typeof parseArgs<T>>;
 
 // @public (undocumented)

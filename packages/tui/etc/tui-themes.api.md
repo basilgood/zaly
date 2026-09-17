@@ -4,46 +4,28 @@
 
 ```ts
 
-import * as _$_zaly_shared_registry0 from '@zaly/shared/registry';
 import { BundledTheme } from 'shiki/types';
+import { Registry } from '@zaly/shared/registry';
 
 // @public (undocumented)
 export type AnyTheme = BuiltinTheme | (string & {});
 
 // @public
-export type BuiltinTheme = keyof typeof builtin | "ansi";
-
-// @public
-export const defaultTheme: Theme;
-
-// @public
-export function loadTheme(name?: string): Promise<Theme>;
-
-// @public (undocumented)
-export function loadTheme(opts: {
-    name?: string;
-    dirs?: string[];
-}): Promise<Theme>;
-
-// @public (undocumented)
-export function loadTheme(opts: {
-    path: string;
-}): Promise<Theme>;
-
-// @public (undocumented)
-export type ThemeLoader = () => Promise<Partial<Theme>>;
-
-// @public
-export const themeRegistry: _$_zaly_shared_registry0.Registry<ThemeLoader, {
+export const builtin: {
     readonly "ayu-dark": () => Promise<Partial<Theme>>;
     readonly "catppuccin-frappe": () => Promise<Partial<Theme>>;
     readonly "catppuccin-latte": () => Promise<Partial<Theme>>;
     readonly "catppuccin-macchiato": () => Promise<Partial<Theme>>;
     readonly "catppuccin-mocha": () => Promise<Partial<Theme>>;
     readonly dracula: () => Promise<Partial<Theme>>;
+    readonly "dracula-soft": () => Promise<Partial<Theme>>;
+    readonly "everforest-dark": () => Promise<Partial<Theme>>;
+    readonly "everforest-light": () => Promise<Partial<Theme>>;
     readonly "github-dark": () => Promise<Partial<Theme>>;
     readonly "github-light": () => Promise<Partial<Theme>>;
     readonly "gruvbox-dark-medium": () => Promise<Partial<Theme>>;
+    readonly "kanagawa-dragon": () => Promise<Partial<Theme>>;
+    readonly "kanagawa-wave": () => Promise<Partial<Theme>>;
     readonly "material-theme-palenight": () => Promise<Partial<Theme>>;
     readonly "min-dark": () => Promise<Partial<Theme>>;
     readonly "min-light": () => Promise<Partial<Theme>>;
@@ -64,6 +46,62 @@ export const themeRegistry: _$_zaly_shared_registry0.Registry<ThemeLoader, {
     readonly vesper: () => Promise<Partial<Theme>>;
     readonly "vitesse-dark": () => Promise<Partial<Theme>>;
     readonly "vitesse-light": () => Promise<Partial<Theme>>;
+};
+
+// @public
+export type BuiltinTheme = keyof typeof builtin | "ansi";
+
+// @public
+export const defaultTheme: Theme;
+
+// @public
+export function loadTheme(name?: string): Promise<Theme>;
+
+// @public (undocumented)
+export function loadTheme(opts: {
+    name?: string;
+    path?: string;
+}): Promise<Theme>;
+
+// @public (undocumented)
+export type ThemeLoader = () => Promise<Partial<Theme>>;
+
+// @public
+export const themeRegistry: Registry<ThemeLoader, {
+readonly "ayu-dark": () => Promise<Partial<Theme>>;
+readonly "catppuccin-frappe": () => Promise<Partial<Theme>>;
+readonly "catppuccin-latte": () => Promise<Partial<Theme>>;
+readonly "catppuccin-macchiato": () => Promise<Partial<Theme>>;
+readonly "catppuccin-mocha": () => Promise<Partial<Theme>>;
+readonly dracula: () => Promise<Partial<Theme>>;
+readonly "dracula-soft": () => Promise<Partial<Theme>>;
+readonly "everforest-dark": () => Promise<Partial<Theme>>;
+readonly "everforest-light": () => Promise<Partial<Theme>>;
+readonly "github-dark": () => Promise<Partial<Theme>>;
+readonly "github-light": () => Promise<Partial<Theme>>;
+readonly "gruvbox-dark-medium": () => Promise<Partial<Theme>>;
+readonly "kanagawa-dragon": () => Promise<Partial<Theme>>;
+readonly "kanagawa-wave": () => Promise<Partial<Theme>>;
+readonly "material-theme-palenight": () => Promise<Partial<Theme>>;
+readonly "min-dark": () => Promise<Partial<Theme>>;
+readonly "min-light": () => Promise<Partial<Theme>>;
+readonly monokai: () => Promise<Partial<Theme>>;
+readonly "night-owl": () => Promise<Partial<Theme>>;
+readonly nord: () => Promise<Partial<Theme>>;
+readonly "one-dark-pro": () => Promise<Partial<Theme>>;
+readonly "one-light": () => Promise<Partial<Theme>>;
+readonly poimandres: () => Promise<Partial<Theme>>;
+readonly "rose-pine": () => Promise<Partial<Theme>>;
+readonly "solarized-dark": () => Promise<Partial<Theme>>;
+readonly "solarized-light": () => Promise<Partial<Theme>>;
+readonly "synthwave-84": () => Promise<Partial<Theme>>;
+readonly "tokyonight-day": () => Promise<Partial<Theme>>;
+readonly "tokyonight-moon": () => Promise<Partial<Theme>>;
+readonly "tokyonight-night": () => Promise<Partial<Theme>>;
+readonly "tokyonight-storm": () => Promise<Partial<Theme>>;
+readonly vesper: () => Promise<Partial<Theme>>;
+readonly "vitesse-dark": () => Promise<Partial<Theme>>;
+readonly "vitesse-light": () => Promise<Partial<Theme>>;
 }>;
 
 // (No @packageDocumentation comment for this package)

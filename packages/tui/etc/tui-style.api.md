@@ -5,7 +5,6 @@
 ```ts
 
 import { BundledTheme } from 'shiki/types';
-import { InspectOptions as InspectOptions_2 } from 'node:util';
 
 // @public (undocumented)
 export type AnsiColor = AnsiColorName | BrightAnsiColorName | HexColor | "inherit";
@@ -48,13 +47,25 @@ export type ColorLightness = `${number}`;
 // @public
 export type HexColor = `#${string}`;
 
+// @public (undocumented)
+export function inspect(value: unknown, opts?: InspectOpts): string;
+
 // @public
-export function inspect(msg: unknown[], opts?: InspectOptions): string;
+export function inspectFormat(msg: unknown[], opts?: InspectOpts): string;
 
 // @public (undocumented)
-export interface InspectOptions {
-    inspect?: InspectOptions_2;
+export interface InspectOpts {
+    // (undocumented)
+    colors?: boolean;
+    // (undocumented)
+    indent?: number;
+    // (undocumented)
+    null?: boolean;
     stacktrace?: boolean;
+    // (undocumented)
+    style?: StyleBuilder;
+    // (undocumented)
+    undefined?: boolean;
 }
 
 // @public (undocumented)
@@ -76,19 +87,19 @@ export type Style = Omit<AnsiStyle, "fg" | "bg"> & {
     style?: AnyStyle;
 };
 
-// @public
-export function style(theme?: Theme): StyleBuilder;
-
 // @public (undocumented)
 export type StyleBuilder = {
     theme: Theme;
     (text: string): string;
-    fg(color: Color): StyleBuilder;
-    bg(color: Color): StyleBuilder;
-    add(slot?: AnyThemeKey | Style): StyleBuilder;
-    lighten(n: number): StyleBuilder;
-    darken(n: number): StyleBuilder;
-} & { readonly [K in AttrName | FgChainKey | BgChainKey | FgExtractKey]: StyleBuilder };
+    fg: (color: Color) => StyleBuilder;
+    bg: (color: Color) => StyleBuilder;
+    add: (slot?: AnyThemeKey | Style) => StyleBuilder;
+    lighten: (n: number) => StyleBuilder;
+    darken: (n: number) => StyleBuilder;
+} & { readonly [K in AttrName | FgChainKey | BgChainKey | FgExtractKey]: StyleBuilder; };
+
+// @public
+export function styleBuilder(theme?: Theme | false): StyleBuilder;
 
 // @public (undocumented)
 export type ThemeKey = keyof Theme;

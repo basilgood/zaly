@@ -4,6 +4,21 @@
 
 ```ts
 
+// @public (undocumented)
+export type NN<T> = NonNullable<T>;
+
+// @public (undocumented)
+export type PathForProp<K extends string, T, V, D extends number> = D extends 0 ? PathMatch<T, V> extends true ? readonly [K] : never : PathRecurse<T> extends true ? PathMatch<T, V> extends true ? readonly [K] | readonly [K, ...PropPath<T, V, Prev[D]>] : readonly [K, ...PropPath<T, V, Prev[D]>] : PathMatch<T, V> extends true ? readonly [K] : never;
+
+// @public (undocumented)
+export type PathMatch<T, V> = [NN<T>] extends [V] ? true : false;
+
+// @public (undocumented)
+export type PathRecurse<T> = NN<T> extends readonly unknown[] ? false : NN<T> extends ((...args: any[]) => any) ? false : NN<T> extends object ? true : false;
+
+// @public (undocumented)
+export type Prev = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
 // @public
 export function propGet<T, const P extends PropPath<T>>(obj: T, path: P): PropValue<T, P> | undefined;
 
@@ -15,6 +30,9 @@ export function propSet<T, const P extends PropPath<T>>(obj: T, path: P, value: 
 
 // @public
 export type PropValue<T, P> = P extends readonly [infer K extends StringKey<T>, ...infer Rest extends readonly string[]] ? Rest extends readonly [] ? NN<T>[K] : PropValue<NN<T>[K], Rest> : never;
+
+// @public (undocumented)
+export type StringKey<T> = keyof NN<T> & string;
 
 // (No @packageDocumentation comment for this package)
 

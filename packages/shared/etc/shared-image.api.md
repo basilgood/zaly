@@ -31,6 +31,13 @@ export function imageInfo<T extends ImageFormat>(img: DetectedImage<T>): Promise
 // @public (undocumented)
 export function isWritable(img: DetectedFile): img is DetectedImage<WritableFormat>;
 
+// @public
+export const SHARP_WRITERS: {
+    readonly jpeg: (s: Sharp) => Sharp;
+    readonly png: (s: Sharp) => Sharp;
+    readonly webp: (s: Sharp) => Sharp;
+};
+
 // @public (undocumented)
 export type WritableFormat = keyof typeof SHARP_WRITERS;
 
