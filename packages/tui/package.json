@@ -248,7 +248,7 @@
   "dependencies": {
     "@zaly/shared": "workspace:*",
     "diff": "^9.0.0",
-    "marked": "^18.0.12",
+    "marked": "^18.0.13",
     "pathe": "^2.0.3",
     "shiki": "^4.4.3"
   },
@@ -257,7 +257,7 @@
     "mitata": "^1.0.34",
     "slice-ansi": "^9.0.0",
     "string-width": "^8.2.2",
-    "typia": "^14.0.5",
+    "typia": "^14.0.6",
     "wrap-ansi": "^10.0.1"
   },
   "optionalDependencies": {
@@ -268,6 +268,6 @@
     "node": ">=22.11"
   },
   "inlinedDependencies": {
-    "typia": "14.0.5"
+    "typia": "14.0.6"
   }
 }

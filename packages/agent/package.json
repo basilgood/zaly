@@ -60,7 +60,7 @@
   "devDependencies": {
     "@types/shell-quote": "^1.7.5",
     "defuddle": "^0.19.2",
-    "ignore": "^7.0.8",
+    "ignore": "^7.0.9",
     "jsonpath-plus": "^10.4.0",
     "linkedom": "^0.18.13",
     "shell-quote": "^1.10.0"
@@ -79,7 +79,7 @@
     "css-select": "7.0.0",
     "css-what": "8.0.0",
     "cssom": "0.5.0",
-    "defuddle": "0.19.3",
+    "defuddle": "0.19.4",
     "dom-serializer": [
       "2.0.0",
       "3.1.1"
@@ -102,7 +102,7 @@
       "8.0.0"
     ],
     "htmlparser2": "10.1.0",
-    "ignore": "7.0.8",
+    "ignore": "7.0.9",
     "jsonpath-plus": "10.4.0",
     "linkedom": "0.18.13",
     "mathml-to-latex": "1.8.0",
