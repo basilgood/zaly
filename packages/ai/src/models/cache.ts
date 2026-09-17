@@ -1,6 +1,6 @@
 import type { JsonObject } from "@zaly/shared/json"
+import type { Catalog } from "./catalog.ts"
 
-import { join } from "node:path"
 import { zalyPaths } from "@zaly/shared/paths"
 import { safeReadJson, safeWriteJson } from "@zaly/shared/json"
 
@@ -16,22 +16,29 @@ type CachedModels = JsonObject & {
 /** Path to the cached models.dev catalog. Overridable via `ZALY_MODELS_CACHE`
  *  so tests can keep the real cache untouched. */
 export function modelsCachePath(): string {
-  return process.env.ZALY_MODELS_CACHE ?? join(zalyPaths.env.cache, "models.json")
+  return process.env.ZALY_MODELS_CACHE ?? zalyPaths.modelsCache
 }
 
 /** Read the cached catalog. Returns `undefined` when the file is missing,
- *  expired, or unparseable — any of which triggers a fresh fetch. */
-export async function readModelsCache(): Promise<JsonObject | undefined> {
+ *  expired, or unparseable — any of which triggers a fresh fetch.
+ *
+ *  The return type is the honest contract, not a guarantee: the file is
+ *  untrusted disk data. `Catalog` describes the shape a *valid* payload
+ *  has; validation of individual providers happens downstream in
+ *  `ModelCatalog.#load`. The cast is load-bearing precisely because the
+ *  JSON could be anything — that's what the cache layer is for. */
+export async function readModelsCache(): Promise<Catalog | undefined> {
   const cached = await readCachedModels()
   if (!cached || Date.now() > cached.expiresAt) return
-  return cached.data
+  return cached.data as unknown as Catalog
 }
 
 /** Read the cached catalog even when expired, so a failed fetch can fall
  *  back to stale data. Returns `undefined` only when the file is missing
  *  or unparseable. */
-export async function readStaleModelsCache(): Promise<JsonObject | undefined> {
-  return (await readCachedModels())?.data
+export async function readStaleModelsCache(): Promise<Catalog | undefined> {
+  const cached = await readCachedModels()
+  return (cached?.data ?? undefined) as Catalog | undefined
 }
 
 async function readCachedModels(): Promise<CachedModels | undefined> {

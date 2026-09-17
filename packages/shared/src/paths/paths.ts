@@ -22,6 +22,11 @@ export const zalyPaths = {
     return join(this.env.config, "models.json")
   },
 
+  /** models.dev on-demand catalog cache — written by @zaly/ai's model loader. */
+  get modelsCache(): string {
+    return join(this.env.cache, "models.json")
+  },
+
   pluginPath(plugin: string) {
     return join(this.plugins, encodePath(plugin))
   },

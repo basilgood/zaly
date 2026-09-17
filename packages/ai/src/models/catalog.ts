@@ -101,7 +101,7 @@ export type CatalogModel = ModelInfo & {
   provider?: ModelProviderOverride
 }
 
-type Catalog = Record<string, CatalogProvider | undefined>
+export type Catalog = Record<string, CatalogProvider | undefined>
 
 const npmToApi: Record<string, BuiltinProvider | undefined> = {
   "@ai-sdk/anthropic": "anthropic",
