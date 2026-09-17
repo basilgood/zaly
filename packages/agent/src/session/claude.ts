@@ -98,8 +98,8 @@ export async function loadClaudeSession(
   messages.sort((a, b) => (a.ts ?? 0) - (b.ts ?? 0))
   // De-duplicate tool_use ids. Claude Code branching / sidechain replay
   // can emit the same tool_use_id across multiple assistant messages
-  // (especially with `walk: "all"`); downstream consumers like the
-  // masker or any (id → call) lookup expect uniqueness.
+  // (especially with `walk: "all"`); downstream consumers like any
+  // (id → call) lookup expect uniqueness.
   dedupCallIds(messages)
   return { messages }
 }
@@ -136,8 +136,8 @@ interface ClaudeRecord {
   message?: ClaudeMessage
   /** Wall-clock time the original Claude session recorded the message,
    *  ISO 8601 string. Preserved onto `Message.ts` so age-based logic
-   *  (masker `maxAge`, freshness, replay) sees realistic timestamps
-   *  rather than the import time. */
+   *  (freshness, replay) sees realistic timestamps rather than the
+   *  import time. */
   timestamp?: string
   /** Claude Code attaches structured per-tool result info here, alongside
    *  the model-visible `tool_result` block. Shape varies by tool:
@@ -450,9 +450,9 @@ function toZalyMessage(
   else if (rec.type === "assistant") m = toAssistantMessage(inner, toolCalls)
   if (!m) return undefined
 
-  // Preserve the original Claude timestamp so age-based logic (masker
-  // `maxAge`, freshness checks, replay) sees realistic times instead
-  // of when the import ran.
+  // Preserve the original Claude timestamp so age-based logic
+  // (freshness checks, replay) sees realistic times instead of when
+  // the import ran.
   if (rec.timestamp) {
     const ts = Date.parse(rec.timestamp)
     if (!Number.isNaN(ts)) m = { ...m, ts }
