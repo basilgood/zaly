@@ -69,7 +69,7 @@ export interface ProviderRequest {
  *
  * Token counts come from `StreamEvent.finish.usage` — the provider is
  * the source of truth, and post-hoc reporting is enough for
- * compaction-at-90% decisions (see `isContextOverflow` for the
+ * handoff-at-90% decisions (see `isContextOverflow` for the
  * reactive fallback path).
  */
 export interface Provider<T extends string = string> {

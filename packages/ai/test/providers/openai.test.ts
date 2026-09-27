@@ -309,7 +309,7 @@ describe("openai: request translation", () => {
     })
   })
 
-  test("assistant with empty string content omits the content field", async () => {
+  test("assistant with empty string content sends empty content", async () => {
     const { fetch, recorded } = recordFetch(sseResponse([finishChunk()]))
     const provider = createOpenAI({ apiKey: "test", fetch })
     await drain(
@@ -326,9 +326,29 @@ describe("openai: request translation", () => {
     )
 
     const body = recorded[0].body as { messages: unknown[] }
-    // Empty content must not be sent as `content: ""` (some endpoints
-    // reject it as `content: null`). The field is omitted entirely.
-    expect(body.messages[1]).toEqual({ role: "assistant" })
+    // Empty content must be sent as `content: ""`, not omitted — some
+    // endpoints reject a missing/null content as `<nil>`.
+    expect(body.messages[1]).toEqual({ content: "", role: "assistant" })
+  })
+
+  test("assistant with only reasoning parts sends empty content", async () => {
+    const { fetch, recorded } = recordFetch(sseResponse([finishChunk()]))
+    const provider = createOpenAI({ apiKey: "test", fetch })
+    await drain(
+      provider.stream(
+        streamReq({
+          messages: [
+            { content: "x", role: "user" },
+            { content: [{ text: "thinking…", type: "reasoning" }], role: "assistant" },
+            { content: "y", role: "user" },
+          ],
+          model: "gpt-4o-mini",
+        })
+      )
+    )
+
+    const body = recorded[0].body as { messages: unknown[] }
+    expect(body.messages[1]).toEqual({ content: "", role: "assistant" })
   })
 
   test("reasoning parts are dropped on the wire", async () => {
