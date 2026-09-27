@@ -35,7 +35,7 @@ export type PluginConfig = {
  */
 export type PluginHost = {
   ctx: AgentContext
-  /** Effective zaly config, as resolved from user/workspace/project files. */
+  /** Plugin-facing settings, a subset of the resolved zaly config. */
   config: PluginConfig
   logger: Logger
   log: LogApi

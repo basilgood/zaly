@@ -137,7 +137,6 @@
         "@zaly/tui": "workspace:*",
       },
       "devDependencies": {
-        "@zaly/config": "workspace:*",
         "jiti": "^2.7.0",
       },
       "peerDependencies": {
