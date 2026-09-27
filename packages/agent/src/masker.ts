@@ -207,7 +207,7 @@ export class Masker {
     // tell how far our `chars/4` estimate has drifted from the provider's
     // count. Re-arming from the raw estimate instead pushes the next
     // threshold above what was actually sent — each pass then fires later
-    // and masks less, walking the projection toward compaction.
+    // and masks less, walking the projection toward a handoff.
     const scale = used !== undefined && used > 0 && usage.tokens > 0 ? used / usage.tokens : undefined
     const size = (tokens: number): number => (scale === undefined ? tokens : tokens * scale)
 

@@ -16,6 +16,7 @@ import type {
   ToolResult,
 } from "@zaly/ai"
 import type { CompactionOptions } from "./compaction/compactions.ts"
+import { Redundancy } from "./compaction/redundancy.ts"
 import type { AgentContext } from "./ctx.ts"
 import type { AgentEvents, AgentStatus, AgentStop, AgentStopKind } from "./events.ts"
 import type { Session } from "./session/session.ts"
@@ -67,6 +68,8 @@ export class Agent extends Emitter<AgentEvents> {
   #injectQueue: Message[] = []
   #appendQueue: Message[] = []
   #notifyQueue: MetaPart[] = []
+  #redundancy: Redundancy
+
 
   #status: AgentStatus = "idle"
   #abortController?: AbortController
@@ -135,6 +138,7 @@ export class Agent extends Emitter<AgentEvents> {
 
     // Seed usage
     this.#usage = new TokenUsage(this.messages)
+    this.#redundancy = new Redundancy(toValue(ctx.opts.compaction)?.redundancy)
     this.#ctx.on("session", () => this.reset())
   }
 
@@ -149,6 +153,7 @@ export class Agent extends Emitter<AgentEvents> {
     this.#appendQueue = []
     this.#notifyQueue = []
     this.#wakeups.clear()
+    this.#redundancy.reset()
     this.#stop("natural")
   }
 
@@ -257,7 +262,7 @@ export class Agent extends Emitter<AgentEvents> {
     const used = this.contextSize
     // Prefer the configured context window (the "good" zone) over the
     // model's full context — models degrade well before their max, so
-    // masking/compaction should fire relative to the window, not the
+    // masking/handoff should fire relative to the window, not the
     // ceiling. `contextLimit` is the window; fall back to the model's
     // declared context when unset.
     const limit = this.#opts.contextLimit ?? this.model?.spec.contextSize ?? 0
@@ -475,8 +480,10 @@ export class Agent extends Emitter<AgentEvents> {
     const opts = toValue(this.#opts.compaction)
     const auto = opts?.enabled ?? true
     if (!auto) return false
-    const threshold = opts?.threshold ?? 0.95
-    return this.pressure.ratio >= threshold
+    return (
+      this.pressure.ratio >= (opts?.threshold ?? 0.95) ||
+      this.#redundancy.degraded
+    )
   }
 
   #streamOpts(): ModelStreamOptions {
@@ -499,14 +506,26 @@ export class Agent extends Emitter<AgentEvents> {
 
   /** Run exactly one step. Useful for tests and custom drivers
    *  that want to interleave logic between steps. */
-  async step(): Promise<StepResult> {
-    if (this.#shouldAutoCompact()) await this.compact()
+  async step(opts: { auto?: boolean } = {}): Promise<StepResult> {
     // Drain the notify queue into the inject queue as a single system message
     if (this.#notifyQueue.length > 0) {
       this.#injectQueue.push({
         content: this.#notifyQueue.splice(0),
         role: "system",
       })
+    }
+    // Hand off AFTER the drain: the summary becomes the head of the chain,
+    // so a notification still pending would otherwise be summarized away
+    // instead of committed as the post-handoff continuation cue.
+    if (opts.auto ?? true) {
+      if (this.#shouldAutoCompact()) {
+        this.#opts.logger
+          ?.child("compaction")
+          .info(
+            `handoff triggered (pressure ${Math.round(this.pressure.ratio * 100)}%, degraded=${this.#redundancy.degraded})`
+          )
+        await this.compact("auto")
+      }
     }
 
     // Drain the send queue (user-submitted via `send()`) and the inject
@@ -542,7 +561,7 @@ export class Agent extends Emitter<AgentEvents> {
     }
 
     // Silent-overflow check BEFORE committing the message — gives the
-    // session a chance to drop it and retry on a compacted history.
+    // session a chance to drop it and retry on a handed-off history.
     if (
       this.#opts.contextLimit !== undefined &&
       isContextOverflow({
@@ -562,13 +581,21 @@ export class Agent extends Emitter<AgentEvents> {
     // calls (e.g. a `stop` with zero output tokens). Committing it would
     // persist an empty assistant message that some OpenAI-compatible
     // endpoints reject as `content: null` on the next request (notably
-    // after compaction, when it lands in the preserved tail). Drop it
+    // after a handoff, when it lands in the preserved tail). Drop it
     // from the session so it never reaches the wire.
     if (calls.length === 0 && isEmptyAssistant(collected)) {
       this.#opts.logger?.warn("Dropping empty assistant turn (no text, no tool calls)")
       return { kind: "natural", ...result }
     }
 
+    const text = (() => {
+      if (typeof collected.content === "string") return collected.content
+      return collected.content
+        .filter((p) => p.type === "text")
+        .map((p) => ("text" in p ? p.text : ""))
+        .join("\n")
+    })()
+    if (text.length > 0) this.#redundancy.feed(text)
     await this.session.add(collected)
 
     if (calls.length === 0) return { kind: "natural", ...result }
@@ -593,20 +620,41 @@ export class Agent extends Emitter<AgentEvents> {
     return calls
   }
 
-  async compact(): Promise<void> {
+  async compact(trigger: "manual" | "auto" = "manual"): Promise<boolean> {
     const prev = this.#status
+    // `contextSize` reads the last usage entry — it feeds both `pressure`
+    // and the compactor's `preTokens`. Resetting the usage here (as the
+    // old code did) zeroed `preTokens` on every node ever written, so
+    // nothing downstream could reconstruct the pre-handoff size.
     const pressure = this.pressure
-    this.#setStatus("compacting")
-    this.#usage.resetLast()
+    this.#setStatus("handoff")
+    // `run()` clears `#abortController` when the loop settles, so a manual
+    // handoff would otherwise hand the summarizer `signal: undefined` and
+    // wait forever on a stalled stream. Mint one when there is none.
+    const own = this.#abortController === undefined
+    let ac = this.#abortController
+    if (!ac) {
+      ac = new AbortController()
+      this.#abortController = ac
+    }
     try {
       const { Compaction } = await import("./compaction/compactions.ts")
       const opts: Partial<CompactionOptions> = {
         ...toValue(this.#opts.compaction),
-        signal: this.#abortController?.signal,
+        signal: ac.signal,
+        trigger,
       }
       const compactor = new Compaction(this, opts)
-      await compactor.compact(pressure)
+      const written = await compactor.compact(pressure)
+      if (!written) return false
+      // The redundancy pool describes a pre-handoff context that no
+      // longer exists — a fresh pool prevents an immediate re-trigger
+      // from a stale register. Only after a real write: resetting on a
+      // no-op would wipe the register and let pressure re-trip forever.
+      this.#redundancy.reset()
+      return true
     } finally {
+      if (own && this.#abortController === ac) this.#abortController = undefined
       this.#setStatus(prev)
     }
   }
@@ -702,7 +750,9 @@ export class Agent extends Emitter<AgentEvents> {
         return { kind: "paused", reason: this.#pauseRequested }
 
       void this.emit("step-start", { step })
-      const outcome = await this.step()
+      // Only the first step of a turn may hand off on its own — a trigger
+      // between steps cuts the active chain mid-job, between tool calls.
+      const outcome = await this.step({ auto: step === 1 })
       void this.emit("step-end", { outcome: outcome.kind, step })
 
       if (outcome.kind === "error") {
@@ -717,18 +767,18 @@ export class Agent extends Emitter<AgentEvents> {
       }
 
       if (outcome.kind === "context-overflow") {
-        // Auto-compaction also gates the overflow recovery path. With
-        // `auto: false`, overflow stops cleanly instead of attempting
+        // Handoff also gates the overflow recovery path. With
+        // `enabled: false`, overflow stops cleanly instead of attempting
         // a recovery the user explicitly opted out of.
         if (toValue(this.#opts.compaction)?.enabled === false) return { kind: "context-overflow" }
         // Compactor mutates the conversation; the rejected message is
-        // not committed — next step retries on the compacted state.
+        // not committed — next step retries on the handed-off state.
         this.#opts.logger
           ?.child("compaction")
           .warn(
-            `context overflow detected (size ${this.contextSize}, limit ${this.pressure.limit}); running compaction`
+            `context overflow detected (size ${this.contextSize}, limit ${this.pressure.limit}); writing handoff`
           )
-        await this.compact()
+        await this.compact("auto")
         continue
       }
 
@@ -894,11 +944,11 @@ export class Agent extends Emitter<AgentEvents> {
   }
 }
 
-/** True when an assistant message carries no content parts — a degenerate
- *  turn that would serialize to empty/null content on the wire. Text,
- *  `reasoning`, and tool-call parts are all real content; only a part-less
- *  message is dropped (see `#step`). */
+/** True when an assistant message has nothing to replay on the wire —
+ *  no text, no tool calls. Text and tool-call parts are real content;
+ *  `reasoning` is dropped when serializing, so a turn carrying only
+ *  reasoning is degenerate too and is dropped (see `#step`). */
 function isEmptyAssistant(message: Message<"assistant">): boolean {
   if (typeof message.content === "string") return message.content.trim() === ""
-  return message.content.length === 0
+  return !message.content.some((p) => p.type === "text" || p.type === "tool-call")
 }

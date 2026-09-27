@@ -1,6 +1,6 @@
 // ── Frecency tuning ───────────────────────────────────────────────────
 // Half-life measured in assistant turns, not wall time — what matters for
-// compaction context is what's been hot in the agent's *recent
+// handoff context is what's been hot in the agent's *recent
 // experience*, regardless of how long the user spent between turns.
 // 60 turns is a middle ground: actively-iterated work stays at the top
 // while recurring workflow patterns (git stash, test-runner flags) still

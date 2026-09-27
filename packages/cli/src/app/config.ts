@@ -200,7 +200,7 @@ export async function editConfig(app: App, opts: { scope?: "user" | "project" } 
       prop: ["reasoning"],
     }),
     option({
-      desc: "Context window (tokens) used as the reference for masking and compaction",
+      desc: "Context window (tokens) used as the reference for masking and handoff",
       name: "Context Window",
       prop: ["contextWindow"],
       async toggle() {
@@ -330,13 +330,13 @@ export async function editConfig(app: App, opts: { scope?: "user" | "project" } 
       prop: ["commands", "expr"],
     }),
     toggle({
-      desc: "Enable automatic compaction when context is full",
-      name: "Auto Compaction",
+      desc: "Enable the automatic handoff when the context is full or the session is degraded",
+      name: "Auto Handoff",
       prop: ["compaction", "enabled"],
     }),
     option({
-      desc: "Model used to generate the compaction summary (defaults to the session model)",
-      name: "Compaction Model",
+      desc: "Model used to generate the handoff summary (defaults to the session model)",
+      name: "Handoff Model",
       prop: ["compaction", "model"],
       async toggle() {
         const { pickModel } = await import("./model.ts")
@@ -346,28 +346,46 @@ export async function editConfig(app: App, opts: { scope?: "user" | "project" } 
     }),
     option({
       desc: "Existing messages up to this many tokens will be preserved in the context",
-      name: "Compaction Keep Tokens",
+      name: "Handoff Keep Tokens",
       options: [10_000, 20_000, 30_000, 40_000],
       prop: ["compaction", "keepTokens"],
     }),
     option({
-      desc: "Reasoning effort for the compaction summary",
-      name: "Compaction Reasoning Effort",
+      desc: "Reasoning effort for the handoff summary",
+      name: "Handoff Reasoning Effort",
       options: REASONING_EFFORTS,
       prop: ["compaction", "reasoning"],
     }),
     option({
       desc: "Maximum number of tokens to use for the generated summary",
-      name: "Compaction Summary Tokens",
+      name: "Handoff Summary Tokens",
       options: [5000, 10_000, 20_000],
       prop: ["compaction", "summaryTokens"],
     }),
     option({
-      desc: "Threshold for automatic compaction",
-      name: "Compaction Threshold",
+      desc: "Context pressure at which the automatic handoff runs",
+      name: "Handoff Threshold",
       options: [0.75, 0.85, 0.95],
       prop: ["compaction", "threshold"],
       render: renderPct,
+    }),
+    toggle({
+      desc: "Hand off when repetition outgrows new information, before the window fills",
+      name: "Handoff on Degradation",
+      prop: ["compaction", "redundancy", "enabled"],
+    }),
+    option({
+      desc: "Sliding-mean novelty below this marks the session as degraded",
+      name: "Handoff Novelty Threshold",
+      options: [0.25, 0.4, 0.55],
+      prop: ["compaction", "redundancy", "threshold"],
+      render: renderPct,
+    }),
+    option({
+      desc: "How many recent assistant turns the novelty mean averages over",
+      name: "Handoff Novelty Window",
+      options: [3, 5, 8],
+      prop: ["compaction", "redundancy", "window"],
     }),
     toggle({
       desc: "Whether to enable masking",

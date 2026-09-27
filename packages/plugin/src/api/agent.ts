@@ -72,9 +72,10 @@ export class AgentApi {
     return this.#ctx.agent.waitIdle(timeout)
   }
 
-  compact(): Promise<void> {
+  /** Write a handoff summary now. `manual` unless a caller says otherwise. */
+  compact(trigger: "manual" | "auto" = "manual"): Promise<boolean> {
     this.#plugin.assertLoaded()
-    return this.#ctx.agent.compact()
+    return this.#ctx.agent.compact(trigger)
   }
 
   async registerPrompt(name: string, prompt: string | PromptLoader) {

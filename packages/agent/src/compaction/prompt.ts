@@ -2,7 +2,7 @@
  *
  * The summarizer is a separate model call whose job is to compress an
  * older slice of conversation into a structured handoff document. The
- * resulting summary is committed to the session as a `compact` node and
+ * resulting summary is committed to the session as a handoff node and
  * becomes part of the resumed agent's active chain — so it must be
  * self-contained: a fresh agent reading only this summary should be
  * able to continue the work without needing the original transcript.
@@ -20,7 +20,7 @@
  *    catastrophic failure mode (model continues the conversation
  *    instead of summarizing).
  *
- *  - `PREVIOUS_SUMMARY_PROMPT` — only included on iterative compactions
+ *  - `PREVIOUS_SUMMARY_PROMPT` — only included on iterative handoffs
  *    when a prior summary exists. Tells the model to preserve and
  *    extend rather than start fresh.
  *
@@ -32,7 +32,7 @@
  *   <commands>...</commands>                                 (extractBashUsage table)
  *   SUMMARY_PROMPT
  *
- * Caching note: compactions are infrequent (one per session, hours apart)
+ * Caching note: handoffs are infrequent (one per session, hours apart)
  * so the 5-minute prompt cache window will never hit. The summarizer
  * call should explicitly skip cache control to avoid paying cache-write
  * fees on tokens that will never be re-read.
@@ -90,7 +90,7 @@ Reminders before you write:
 
 Begin the summary.`
 
-export const PREVIOUS_SUMMARY_PROMPT = `A prior summary exists from an earlier compaction. Preserve all information from it and extend it with what's new in the conversation above:
+export const PREVIOUS_SUMMARY_PROMPT = `A handoff summary exists from an earlier handoff. Preserve all information from it and extend it with what's new in the conversation above:
 - Carry forward Goal, Constraints & Preferences, Key Decisions, and User Messages — do not drop entries.
 - Move items from Pending into Current Work or out of the list when completed.
 - Update Current Work and the next-step recommendation based on the most recent activity.
@@ -98,21 +98,21 @@ export const PREVIOUS_SUMMARY_PROMPT = `A prior summary exists from an earlier c
 
 /** Frames the model-generated summary into the system message that
  *  becomes the first node of the resumed agent's active chain. Goes
- *  *before* the summary text so the agent reads "this is a compaction
+ *  *before* the summary text so the agent reads "this is a handoff
  *  summary, here's how to use it" before encountering the structured
  *  section headers. The whole assembly is wrapped in a
- *  `<compaction-summary>` tag so it matches the harness's other
+ *  `<handoff-summary>` tag so it matches the harness's other
  *  authoritative-block conventions (`<system-reminder>`, `<time>`, …).
  *
  *  Caller assembles:
- *    <compaction-summary>
+ *    <handoff-summary>
  *    {SUMMARY_HEADER}
  *
  *    {model-generated summary}
- *    </compaction-summary>
+ *    </handoff-summary>
  *
- *  Then commits the result as the `summary` field on the compact node. */
-export const SUMMARY_HEADER = `The conversation history up to this point has been compacted to free context space. Below is a structured summary of what happened — goals, decisions, files touched, errors encountered, and what was pending or in progress at the time of compaction.
+ *  Then commits the result as the `summary` field on the handoff node. */
+export const SUMMARY_HEADER = `This session handed off: the conversation before this point has been replaced by the summary below to free context space. It records what happened — goals, decisions, files touched, errors encountered, and what was pending or in progress at the time of the handoff.
 
 After this message, the most recent messages of the original conversation are preserved verbatim so you have raw context for the immediate work.
 

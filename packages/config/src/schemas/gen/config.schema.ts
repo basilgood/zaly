@@ -25,7 +25,7 @@ export const ConfigSchema = {
                     },
                     contextWindow: {
                         type: "number",
-                        description: "Context window (tokens) used as the reference for masking and\ncompaction pressure. When unset, the model's full declared context\nis used. Set it to keep the session inside a \"good\" window \u2014 models\ndegrade well before their max, so firing compaction relative to a\nsmaller window avoids the hallucination zone."
+                        description: "Context window (tokens) used as the reference for masking and\nhandoff pressure. When unset, the model's full declared context\nis used. Set it to keep the session inside a \"good\" window \u2014 models\ndegrade well before their max, so firing a handoff relative to a\nsmaller window avoids the hallucination zone."
                     },
                     tools: {
                         type: "array",
@@ -135,7 +135,7 @@ export const ConfigSchema = {
                         properties: {
                             enabled: {
                                 type: "boolean",
-                                description: "Enable automatic compaction when context is full"
+                                description: "Enable the automatic handoff when context is full or the session\nis degraded. The degradation trigger fires on redundancy \u2014 the\nsliding mean of per-turn novelty dropping below\n`redundancy.threshold` \u2014 ahead of the pressure threshold,\nbecause the dilution curve is visible in the model's behavior\nwell before the window fills."
                             },
                             keepTokens: {
                                 type: "number",
@@ -143,7 +143,7 @@ export const ConfigSchema = {
                             },
                             model: {
                                 type: "string",
-                                description: "Model id used to generate the compaction summary. Falls back to\nthe session model when unset. Summarization is mechanical\nextraction \u2014 a cheaper model does it nearly as well."
+                                description: "Model id used to generate the handoff summary. Falls back to\nthe session model when unset. Summarization is mechanical\nextraction \u2014 a cheaper model does it nearly as well."
                             },
                             reasoning: {
                                 type: "string",
@@ -156,7 +156,7 @@ export const ConfigSchema = {
                                     "off",
                                     "xhigh"
                                 ],
-                                description: "Reasoning effort for the compaction summary"
+                                description: "Reasoning effort for the handoff summary"
                             },
                             summaryTokens: {
                                 type: "number",
@@ -164,7 +164,30 @@ export const ConfigSchema = {
                             },
                             threshold: {
                                 type: "number",
-                                description: "Threshold for automatic compaction."
+                                description: "Threshold for the automatic handoff."
+                            },
+                            redundancy: {
+                                type: "object",
+                                properties: {
+                                    enabled: {
+                                        type: "boolean"
+                                    },
+                                    threshold: {
+                                        type: "number"
+                                    },
+                                    window: {
+                                        type: "number"
+                                    },
+                                    n: {
+                                        type: "number"
+                                    },
+                                    minTextLen: {
+                                        type: "number"
+                                    }
+                                },
+                                required: [],
+                                additionalProperties: false,
+                                description: "Redundancy-based degradation detection (the handoff trigger).\nOverrides the defaults \u2014 the trigger is enabled with a 0.4\nnovelty threshold over a 5-turn sliding window."
                             }
                         },
                         required: [],
@@ -238,6 +261,17 @@ export const ConfigSchema = {
                             type: "string"
                         }
                     },
+                    mcp: {
+                        type: "object",
+                        properties: {
+                            servers: {
+                                $ref: "#/components/schemas/RecordstringMcpServerConfig"
+                            }
+                        },
+                        required: [],
+                        additionalProperties: false,
+                        description: "MCP servers exposed as tools by the MCP adapter."
+                    },
                     resources: {
                         $ref: "#/components/schemas/RecordstringResourceFilter",
                         description: "Resource configuration for zaly."
@@ -283,6 +317,53 @@ export const ConfigSchema = {
             },
             AnyTool: {
                 type: "string"
+            },
+            RecordstringMcpServerConfig: {
+                type: "object",
+                additionalProperties: {
+                    $ref: "#/components/schemas/McpServerConfig"
+                }
+            },
+            McpServerConfig: {
+                type: "object",
+                properties: {
+                    command: {
+                        type: "string",
+                        description: "Command that starts the server, e.g. `npx`."
+                    },
+                    args: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        },
+                        description: "Arguments passed to the command."
+                    },
+                    env: {
+                        $ref: "#/components/schemas/Recordstringstring",
+                        description: "Extra environment variables for the server process."
+                    },
+                    tools: {
+                        type: "array",
+                        items: {
+                            type: "string"
+                        },
+                        description: "Only register these tools, by the server's own names. Unset means\nevery tool the server advertises."
+                    },
+                    disabled: {
+                        type: "boolean",
+                        description: "Skip this server without removing its entry."
+                    }
+                },
+                required: [
+                    "command"
+                ],
+                additionalProperties: false
+            },
+            Recordstringstring: {
+                type: "object",
+                additionalProperties: {
+                    type: "string"
+                }
             },
             RecordstringResourceFilter: {
                 type: "object",

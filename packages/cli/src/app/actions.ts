@@ -99,15 +99,15 @@ export function appActions({ app }: { app: App }) {
       desc: "Clear the current composer input.",
       fn: () => (app.composer.value = ""),
     },
-    "app.compact": {
-      cmd: "compact",
-      desc: "Summarize older history while preserving recent messages.",
-      fn: () => {
-        app.ctx.info("Compacting history...\n")
-        void app.agent
-          .compact()
-          .catch((error) => app.ctx.error(`Compaction failed: ${error}\n`))
-          .finally(() => app.ctx.info("Compaction complete.\n"))
+    "app.handoff": {
+      cmd: "handoff",
+      desc: "Write a structured handoff summary now (same summarizer as the automatic handoff).",
+      fn: async () => {
+        const written = await app.agent.compact("manual").catch((error) => {
+          app.ctx.error(`Handoff failed: ${error}`)
+          return false
+        })
+        app.ctx.info(written ? "Handoff complete.\n" : "Nothing to hand off — session is below the keep-token budget.\n")
       },
     },
     "app.copy": {

@@ -57,10 +57,10 @@ export interface ClaudeSessionOptions {
    *    - `"active"` (default) — walks `parentUuid` back from the most
    *      recent on-chain message. Returns the conversation as the model
    *      currently sees it: branches not on the active head are skipped,
-   *      pre-compact history (parented to a summary record) is dropped.
+   *      pre-handoff history (parented to a summary record) is dropped.
    *    - `"all"` — every user/assistant message in the file, in
-   *      chronological order, regardless of branch or compaction. Useful
-   *      for analytics, fixtures, or recovering pre-compact context. */
+   *      chronological order, regardless of branch or handoff. Useful
+   *      for analytics, fixtures, or recovering pre-handoff context. */
   walk?: "active" | "all"
 }
 
@@ -128,9 +128,9 @@ interface ClaudeRecord {
   isSidechain?: boolean
   /** Set on the synthetic user-role record Claude Code writes for a
    *  `/compact`. The record's content is the summary text; chronologically
-   *  it sits where the compaction happened, with its `parentUuid` still
-   *  pointing into pre-compaction history. The active conversation is
-   *  this summary plus everything after — pre-compaction messages are
+   *  it sits where the handoff happened, with its `parentUuid` still
+   *  pointing into pre-handoff history. The active conversation is
+   *  this summary plus everything after — pre-handoff messages are
    *  unreachable from the live agent. */
   isCompactSummary?: boolean
   message?: ClaudeMessage
@@ -228,7 +228,7 @@ type ClaudeBlock =
  *  those records (using a uuid → ANY record map), collecting only the
  *  user/assistant messages we encounter. Sidechain messages are skipped.
  *
- *  For long-running sessions with multiple compactions, the active chain
+ *  For long-running sessions with multiple handoffs, the active chain
  *  typically lives in the file's most recent chunks — so a 300MB session
  *  loads from a few hundred KB rather than reading the whole file. */
 async function walkChainLazy(path: string): Promise<ClaudeRecord[]> {
@@ -251,9 +251,9 @@ async function walkChainLazy(path: string): Promise<ClaudeRecord[]> {
 
     // Phase 2: walk parentUuid backward, fetching more records lazily
     // as needed to resolve each cursor. A `summary` record is a HARD
-    // boundary — Claude Code compactions create a summary node and
+    // boundary — a handoff summary node marks it and
     // anything before it is unreachable in the live conversation, so
-    // we must not walk past it (would otherwise pull pre-compaction
+    // we must not walk past it (would otherwise pull pre-handoff
     // history that the model can no longer see).
     const chain: ClaudeRecord[] = []
     let cursor: string | undefined = lastOnChain
@@ -295,7 +295,7 @@ function isMessageRecord(rec: ClaudeRecord): boolean {
 }
 
 /** Every user/assistant message in file order, ignoring branches and
- *  compaction boundaries. Sidechain messages are still skipped — those
+ *  handoff boundaries. Sidechain messages are still skipped — those
  *  belong to subagent loops and would scramble the main chain.
  *
  *  This mode reads the entire file (necessary to find every record),

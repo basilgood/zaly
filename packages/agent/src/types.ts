@@ -107,7 +107,7 @@ export interface AgentInit extends Omit<
 /** Snapshot of context-window pressure. Computed by `agent.pressure`
  *  from the most recent step's usage and the model's declared context
  *  limit. Consumers (notifier) escalate behavior on `level`
- *  rises and reset on `level === 0` (e.g. after compaction). */
+ *  rises and reset on `level === 0` (e.g. after a handoff). */
 export interface ContextPressure {
   /** Cumulative tokens occupying the context window — uncached input
    *  + cached reads + cached writes + output. */

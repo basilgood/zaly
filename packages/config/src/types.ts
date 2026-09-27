@@ -35,9 +35,9 @@ export type ResolvedConfig = {
   /** Default reasoning effort **/
   reasoning: ReasoningEffort
   /** Context window (tokens) used as the reference for masking and
-   *  compaction pressure. When unset, the model's full declared context
+   *  handoff pressure. When unset, the model's full declared context
    *  is used. Set it to keep the session inside a "good" window — models
-   *  degrade well before their max, so firing compaction relative to a
+   *  degrade well before their max, so firing a handoff relative to a
    *  smaller window avoids the hallucination zone. */
   contextWindow?: number
   tools: string[]
@@ -79,20 +79,35 @@ export type ResolvedConfig = {
     expr?: boolean
   }
   compaction: {
-    /** Enable automatic compaction when context is full */
+    /** Enable the automatic handoff when context is full or the session
+     *  is degraded. The degradation trigger fires on redundancy — the
+     *  sliding mean of per-turn novelty dropping below
+     *  `redundancy.threshold` — ahead of the pressure threshold,
+     *  because the dilution curve is visible in the model's behavior
+     *  well before the window fills. */
     enabled: boolean
     /** Existing messages up to this many tokens will be preserved in the context */
     keepTokens: number
-    /** Model id used to generate the compaction summary. Falls back to
+    /** Model id used to generate the handoff summary. Falls back to
      *  the session model when unset. Summarization is mechanical
      *  extraction — a cheaper model does it nearly as well. */
     model?: string
-    /** Reasoning effort for the compaction summary */
+    /** Reasoning effort for the handoff summary */
     reasoning: ReasoningEffort
     /** Maximum number of tokens to use for the generated summary */
     summaryTokens: number
-    /** Threshold for automatic compaction. */
+    /** Threshold for the automatic handoff. */
     threshold: number
+    /** Redundancy-based degradation detection (the handoff trigger).
+     *  Overrides the defaults — the trigger is enabled with a 0.4
+     *  novelty threshold over a 5-turn sliding window. */
+    redundancy?: {
+      enabled?: boolean
+      threshold?: number
+      window?: number
+      n?: number
+      minTextLen?: number
+    }
   }
   masking: {
     /** Whether to enable masking. Defaults to true. */

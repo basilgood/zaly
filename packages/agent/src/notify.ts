@@ -15,11 +15,6 @@ export class Notifier {
   #opts: Required<NotifyOptions>
   #lastTime?: number
   #lastStep?: number
-  /** Highest pressure threshold (from `#pressureLevels`) we've already
-   *  notified for in this session. Reset to 0 when pressure drops back
-   *  below the lowest threshold (e.g. after compaction), so a later
-   *  refill can fire the same level again. */
-  #pressureLevel = 0
   #ac?: AbortController
 
   constructor(opts: NotifyOptions = {}) {
@@ -40,8 +35,7 @@ export class Notifier {
       .on(
         "compact",
         ({ node }) => {
-          this.#pressureLevel = 0
-          agent.notify("compacted", {
+          agent.notify("handoff", {
             ...this.time(),
             messages_preserved: node.tail,
             trigger: node.trigger,
@@ -103,21 +97,12 @@ export class Notifier {
     }
     this.#lastStep = now
 
-    // Context-window pressure — denominator is `limit.context` (full
-    // window), NOT `maxTokens` (per-request output cap). Notification
-    // fires once per discrete level crossing (75% / 85% / 95%) so the
-    // model gets at most a few escalating signals per session, not one
-    // per step. Resets if pressure drops below the lowest level (e.g.
-    // after compaction) so the cycle can fire again later.
-    const pressure = agent.pressure
-    if (pressure.level > this.#pressureLevel) {
-      agent.notify("context-pressure", {
-        limit: pressure.limit,
-        pct: Math.round(pressure.ratio * 100),
-        used: pressure.used,
-      })
-      this.#pressureLevel = pressure.level
-    } else if (pressure.level === 0) this.#pressureLevel = 0
+    // NOTE: context-pressure notification removed. The pct snapshot was
+    // stale-by-design (chars/4 estimate vs provider usage), read-only,
+    // and contradicted the redundancy handoff — the model can't act on
+    // it, and injecting it biased outputs. Pressure now stays internal
+    // (the 0.95 overflow fallback + statusline). The handoff is the
+    // model-relevant degradation path.
   }
 }
 

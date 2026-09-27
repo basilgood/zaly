@@ -7,7 +7,7 @@ import type { Message, StreamEvent, TokenCount, Tool, ToolCallPart, ToolResult }
  *  field on the session disambiguates. `waiting` is the auto-resuming
  *  variant: the loop stopped but a background task is still in flight,
  *  so the agent will resume on its own when the task completes. */
-export type AgentStatus = "idle" | "streaming" | "running-tools" | "compacting" | "waiting" | "paused"
+export type AgentStatus = "idle" | "streaming" | "running-tools" | "handoff" | "waiting" | "paused"
 
 /** Reason the loop stopped this turn. Distinct from the provider's
  *  `finishReason` (which describes why one round-trip ended). */

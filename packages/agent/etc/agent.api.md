@@ -44,7 +44,7 @@ export class Agent extends Emitter<AgentEvents> {
     constructor(ctx: AgentContext);
     child(overrides?: Partial<AgentOptions>): Promise<Agent>;
     // (undocumented)
-    compact(): Promise<void>;
+    compact(trigger?: "manual" | "auto"): Promise<boolean>;
     get contextSize(): number;
     // (undocumented)
     get ctx(): AgentContext;
@@ -87,7 +87,9 @@ export class Agent extends Emitter<AgentEvents> {
     get started(): boolean;
     // (undocumented)
     get status(): AgentStatus;
-    step(): Promise<StepResult>;
+    step(opts?: {
+        auto?: boolean;
+    }): Promise<StepResult>;
     // (undocumented)
     get steps(): number;
     stop(opts?: {
@@ -270,7 +272,7 @@ export interface AgentOptions extends CollectOptions {
 }
 
 // @public
-export type AgentStatus = "idle" | "streaming" | "running-tools" | "compacting" | "waiting" | "paused";
+export type AgentStatus = "idle" | "streaming" | "running-tools" | "handoff" | "waiting" | "paused";
 
 // @public (undocumented)
 export type AgentStop = {

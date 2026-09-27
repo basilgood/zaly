@@ -21,6 +21,13 @@ export const defaultSettings = {
     enabled: true,
     keepTokens: 20_000,
     reasoning: "medium",
+    redundancy: {
+      enabled: true,
+      minTextLen: 120,
+      n: 4,
+      threshold: 0.4,
+      window: 5,
+    },
     summaryTokens: 10_000,
     threshold: 0.95,
   },

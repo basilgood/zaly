@@ -33,7 +33,14 @@ export async function contextTree(app: App) {
   const tools = await app.ctx.tools().then((t) => t.load())
   const masker = await app.agent.ctx.masker()
 
-  const collapsed = new Set<string>(["tool-result", "compaction-summary", "user-tool-use", "task"])
+  // Old summaries carry `compaction-summary`; both spellings collapse.
+  const collapsed = new Set<string>([
+    "tool-result",
+    "compaction-summary",
+    "handoff-summary",
+    "user-tool-use",
+    "task",
+  ])
   const expand = (c: TokenCount) => !collapsed.has(c.type) && !(c.kind && collapsed.has(c.kind))
 
   const all = tokenStats(app.agent.messages, { expand, prompt, tools })

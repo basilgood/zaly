@@ -24,13 +24,13 @@ type SessionN = {
   | { type: "mask-checkpoint"; threshold: number; messageId: string }
   | {
       type: "compact"
-      /** Whether the loop kicked off compaction itself or the user did. */
+      /** Whether the loop kicked off the handoff itself or the user did. */
       trigger: "manual" | "auto"
-      /** Last known cumulative input+output tokens at compaction time. */
+      /** Last known cumulative input+output tokens at handoff time. */
       preTokens?: number
       /** How long the compactor took, ms. */
       durationMs?: number
-      /** Number of message from before compaction that will be preserved */
+      /** Number of message from before the handoff that will be preserved */
       tail: number
       /** Frozen summary message that becomes the head of the active
        *  chain reconstruction. The full Message (not just text) so the

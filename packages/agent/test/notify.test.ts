@@ -145,7 +145,7 @@ describe("Notifier — event-driven lifecycle", () => {
     expect(findTag(notifications, "session-start")).toBeUndefined()
   })
 
-  test("compact event triggers 'compacted' notification + resets pressure", async () => {
+  test("compact event triggers 'handoff' notification", async () => {
     const session = await Session.load({ store: new MemoryStore() })
     await session.start()
     await session.add({ content: "hi", role: "user" })
@@ -173,10 +173,8 @@ describe("Notifier — event-driven lifecycle", () => {
     } as unknown as Agent
     const notifier = new Notifier()
     notifier.attach(agent)
-    // Prime the notifier's pressure tracking by calling check() — should
-    // record the current level so we can verify it gets reset on compact.
     notifier.check(agent)
-    notifications.length = 0 // ignore any check()-driven notifications
+    notifications.length = 0
 
     await session.compact({
       summary: { content: "(test summary)", role: "system" },
@@ -184,23 +182,18 @@ describe("Notifier — event-driven lifecycle", () => {
       trigger: "auto",
     })
 
-    const compacted = findTag(notifications, "compacted")
-    expect(compacted).toBeDefined()
-    expect(compacted?.data).toMatchObject({
+    const handedOff = findTag(notifications, "handoff")
+    expect(handedOff).toBeDefined()
+    expect(handedOff?.data).toMatchObject({
       messages_preserved: 2,
       trigger: "auto",
     })
 
-    // After compact, pressure level was reset internally. Drop the actual
-    // pressure to 0 and verify the notifier doesn't think we already
-    // notified about the previous level.
-    pressure = { level: 0, limit: 100, ratio: 0.1, used: 10 }
-    notifier.check(agent)
-    // Now climb back up — should re-fire context-pressure since the reset
-    // means the previous "level 2" notification doesn't suppress us.
+    // Pressure stays internal — the handoff is the model-relevant
+    // degradation path, so cross-level climbing injects nothing.
     pressure = { level: 1, limit: 100, ratio: 0.8, used: 80 }
     notifier.check(agent)
-    expect(findTag(notifications, "context-pressure")).toBeDefined()
+    expect(findTag(notifications, "context-pressure")).toBeUndefined()
   })
 
   test("cwd event triggers 'cwd-changed' notification with new cwd", async () => {
@@ -266,7 +259,7 @@ describe("Notifier — check() polling", () => {
     expect(findTag(notifications, "time")).toBeDefined()
   })
 
-  test("context-pressure fires once per level crossing", async () => {
+  test("check() keeps context pressure internal", async () => {
     const session = await Session.load({ store: new MemoryStore() })
     await session.start()
     const notifications: Omit<MetaPart, "type">[] = []
@@ -295,64 +288,13 @@ describe("Notifier — check() polling", () => {
     notifier.attach(agent)
     notifications.length = 0
 
-    // Climb to level 1
-    pressure = { level: 1, limit: 100_000, ratio: 0.78, used: 78_000 }
-    notifier.check(agent)
-    expect(notifications.filter((n) => n.tag === "context-pressure")).toHaveLength(1)
-
-    // Same level — should not re-fire
-    pressure = { level: 1, limit: 100_000, ratio: 0.8, used: 80_000 }
-    notifier.check(agent)
-    expect(notifications.filter((n) => n.tag === "context-pressure")).toHaveLength(1)
-
-    // Climb to level 2 — fires again
-    pressure = { level: 2, limit: 100_000, ratio: 0.86, used: 86_000 }
-    notifier.check(agent)
-    expect(notifications.filter((n) => n.tag === "context-pressure")).toHaveLength(2)
-
-    // Drop to 0 — resets the suppression
-    pressure = { level: 0, limit: 100_000, ratio: 0.1, used: 10_000 }
-    notifier.check(agent)
-    expect(notifications.filter((n) => n.tag === "context-pressure")).toHaveLength(2)
-
-    // Climb back to level 1 — fires again because reset cleared suppression
-    pressure = { level: 1, limit: 100_000, ratio: 0.78, used: 78_000 }
-    notifier.check(agent)
-    expect(notifications.filter((n) => n.tag === "context-pressure")).toHaveLength(3)
-  })
-
-  test("context-pressure payload includes used, limit, pct", async () => {
-    const session = await Session.load({ store: new MemoryStore() })
-    await session.start()
-    const notifications: Omit<MetaPart, "type">[] = []
-    let pressure: ContextPressure = { level: 0, limit: 100_000, ratio: 0, used: 0 }
-    const agent = {
-      ctx: {
-        session,
-        on: () => agent.ctx,
-      },
-      session,
-      notify: (type: string, data: unknown) =>
-        notifications.push(
-          typeof data === "string" || Array.isArray(data)
-            ? { content: data as MetaPart["content"], tag: type }
-            : { data, tag: type }
-        ),
-      get pressure() {
-        return pressure
-      },
-      model: { id: "x" },
-      on() {
-        return agent
-      },
-    } as unknown as Agent
-    const notifier = new Notifier()
-    notifier.attach(agent)
-    notifications.length = 0
-
-    pressure = { level: 1, limit: 200_000, ratio: 0.78, used: 156_000 }
-    notifier.check(agent)
-    const note = findTag(notifications, "context-pressure")
-    expect(note?.data).toEqual({ limit: 200_000, pct: 78, used: 156_000 })
+    // Every level, including the top: pressure never reaches the model —
+    // the pct snapshot was a chars/4 estimate that biased outputs, and
+    // the handoff is the model-relevant degradation path.
+    for (const level of [1, 2, 3]) {
+      pressure = { level, limit: 100_000, ratio: 0.78 + level * 0.05, used: 78_000 }
+      notifier.check(agent)
+    }
+    expect(findTag(notifications, "context-pressure")).toBeUndefined()
   })
 })

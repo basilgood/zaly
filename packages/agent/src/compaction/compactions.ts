@@ -1,6 +1,7 @@
 import type { Message, Model, ReasoningEffort } from "@zaly/ai"
 import type { Agent } from "../agent.ts"
 import type { ContextPressure } from "../types.ts"
+import type { RedundancyOptions } from "./redundancy.ts"
 import type { ToolStatOptions } from "./utils.ts"
 
 import { loadModel, toXml } from "@zaly/ai"
@@ -25,10 +26,17 @@ export type CompactionOptions = {
   files: ToolStatOptions
   signal?: AbortSignal
   reasoning?: ReasoningEffort
+  /** Why this handoff ran. The caller resolves it (`Agent.compact` is
+   *  the only entry point); `session.compact` defaults a missing value
+   *  to `manual`, which would mislabel an auto-triggered handoff. */
   trigger?: "manual" | "auto"
   /** Model id for the summarizer call. Falls back to the session model
    *  when unset. Resolved once via the agent's `loadModel` and cached. */
   model?: string
+  /** Redundancy-based degradation detection — the handoff trigger.
+   *  Fires ahead of the pressure threshold when the sliding mean of
+   *  per-turn novelty drops below `redundancy.threshold`. */
+  redundancy?: Partial<RedundancyOptions>
 }
 
 const defaults: CompactionOptions = {
@@ -52,7 +60,7 @@ export class Compaction {
     this.#opts = { ...defaults, ...opts }
   }
 
-  async compact(pressure: ContextPressure): Promise<void> {
+  async compact(pressure: ContextPressure): Promise<boolean> {
     const { session } = this.#agent
 
     // The summary is built from RAW history — masked stubs would starve
@@ -68,7 +76,7 @@ export class Compaction {
     const tail = messageTail(messages, { keepTokens: this.#opts.keepTokens })
     const older = tail.length > 0 ? messages.slice(0, -tail.length) : messages
 
-    if (older.length === 0) return
+    if (older.length === 0) return false
 
     const conversation = extractConversation(
       // Conversation summary is based on the older messages, not the tail — the tail is what we keep
@@ -90,6 +98,10 @@ export class Compaction {
     }
 
     const summary = await this.#summarize(request)
+    // A summarizer that returns nothing (stalled/empty stream) must not
+    // clobber the chain with an empty head — that loses the whole history
+    // it was supposed to preserve. Leave the session untouched instead.
+    if (summary.trim().length === 0) return false
     // The bash + file usage tables are deterministic, ground-truth signals
     // — pricier to ask the model to reproduce than to copy verbatim. Carry
     // them through to the resumed agent so it has the same working-set
@@ -97,21 +109,22 @@ export class Compaction {
     const summaryMessage: Message<"system"> = {
       content: [
         { text: SUMMARY_HEADER, type: "text" },
-        { text: toXml(summary, "compaction-summary", { indent: false }), type: "text" },
+        { text: toXml(summary, "handoff-summary", { indent: false }), type: "text" },
         { text: fileUsage, type: "text" },
         { text: bashUsage, type: "text" },
       ],
-      meta: { kind: "compaction-summary" },
+      meta: { kind: "handoff-summary" },
       role: "system",
     }
     await session.compact({
       durationMs: Math.round(performance.now() - now),
-      preTokens: this.#agent.contextSize,
+      preTokens: pressure.used,
       summary: summaryMessage,
       tail: tail.length,
       trigger: this.#opts.trigger,
     })
     masker?.reset()
+    return true
   }
 
   async #summarize(message: Message<"user">): Promise<string> {
@@ -140,10 +153,9 @@ export class Compaction {
    *  compactions don't reload it. */
   async #summarizerModel() {
     const id = this.#opts.model
-    if (!id || id === this.#agent.model?.id) return this.#agent.model! // compact() guards model presence
+    if (!id || id === this.#agent.model?.id) return this.#agent.model! // handoff() guards model presence
     if (!this.#summaryModel) {
-      const loaded =
-        (await this.#agent.ctx.opts.loadModel?.(id)) ?? (await loadModel(id))
+      const loaded = (await this.#agent.ctx.opts.loadModel?.(id)) ?? (await loadModel(id))
       this.#summaryModel = loaded
     }
     return this.#summaryModel

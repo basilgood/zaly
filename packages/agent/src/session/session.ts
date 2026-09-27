@@ -25,7 +25,7 @@ import { MemoryStore } from "./memory.ts"
 const VERSION = 2
 
 /**
- * Conversation primitive. Owns a DAG of message + compaction + meta
+ * Conversation primitive. Owns a DAG of message + handoff + meta
  * nodes via a `SessionStore` backend; the *active* message list is
  * whatever you get by walking `parentUuid` backwards from the store's
  * root until you hit a `compact` node (or the start).
@@ -236,11 +236,11 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     return this.#commit({ message: m, type: "message" })
   }
 
-  /** Mark a compaction boundary. Subsequent `add()` calls land after
+  /** Mark a handoff boundary. Subsequent `add()` calls land after
    *  this node; their messages form the new active conversation. The
-   *  pre-compact chain stays in the store but is no longer part of
+   *  pre-handoff chain stays in the store but is no longer part of
    *  `messages`. Also commits a fresh `session-meta` snapshot right
-   *  after the compact so post-compact lazy walks always have a nearby
+   *  after the handoff so post-handoff lazy walks always have a nearby
    *  meta anchor. */
   async compact(opts: {
     trigger?: "manual" | "auto"
@@ -249,6 +249,8 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
     tail: number
     summary: Message<"system">
   }): Promise<string> {
+    // `type: "compact"` is the persisted node kind — the on-disk marker
+    // for every session written before handoffs, so it stays.
     const node: SessionNode = {
       durationMs: opts.durationMs,
       parentUuid: this.#store.root?.uuid,
@@ -393,7 +395,7 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
       if (!node || (node.type === "message" && messageNodes.length + 1 > limit)) break
       cursor = node.parentUuid
       reverse.push(node)
-      // Keep track of the last mask-checkpoint, until we hit a compaction.
+      // Keep track of the last mask-checkpoint, until we hit a handoff.
       if (node.type === "mask-checkpoint" && !compact && !maskCheckpoint) maskCheckpoint = node
       if (node.type === "message") messageNodes.push(node)
       if (node.type === "compact" && (opts.active ?? true)) {
@@ -429,7 +431,7 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
       messages.push(m)
     }
 
-    // Add compaction summary as the first message
+    // Add the handoff summary as the first message
     if (compact) {
       messages.push({ ...compact.summary, id: compact.uuid, ts: compact.ts })
       nodes.set(compact.uuid, {
@@ -458,7 +460,10 @@ export class Session<T extends SessionStore = SessionStore> extends Emitter<Sess
       n.settings = { ...n.settings, version: VERSION }
 
       if (n.type === "compact") {
-        n.summary.meta = { kind: "compaction-summary", ...n.summary.meta }
+        // Pre-handoff sessions carry the old collapse key; migrate it so
+        // the renderer has one spelling to match.
+        if (n.summary.meta?.kind === "compaction-summary")
+          n.summary.meta = { ...n.summary.meta, kind: "handoff-summary" }
         continue
       }
 

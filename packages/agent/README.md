@@ -3,7 +3,7 @@
 Agent runtime used by zaly.
 
 `@zaly/agent` owns the conversation/session loop, tool execution, permissions,
-long-running task tracking, compaction, masking, skills, and subagents. It is UI
+long-running task tracking, handoff, masking, skills, and subagents. It is UI
 agnostic and is used by [`@zaly/cli`](../cli).
 
 > [!WARNING]
@@ -21,11 +21,11 @@ Most users should install [`@zaly/cli`](../cli) instead.
 
 - **Agent loop** — streams model output, dispatches tool calls, resumes after
   tool results, and stops on clear stop reasons.
-- **Sessions** — JSONL-backed conversation/session storage with compaction and
+- **Sessions** — JSONL-backed conversation/session storage with handoff and
   navigation support.
 - **Tools** — built-in tool runtime, permissions, preflight checks, long-running
   task registry, and task polling/abort support.
-- **Context management** — token scoring, compaction, masking, and recent-turn
+- **Context management** — token scoring, handoff, masking, and recent-turn
   preservation for long sessions.
 - **Skills and subagents** — reusable instructions and delegated agent runs.
 

@@ -67,11 +67,11 @@ export async function loadAgent(app: App): Promise<Agent> {
     agent.ctx.prompt = [
       ...base.map((p) => p.text),
       // One-time framing so the model knows its session transcript is the
-      // full record while its in-context view may be compacted for budget.
+      // full record while its in-context view may be handed off for budget.
       // Gives it a concrete recovery path for summarized content (mirrors
       // the opencode model of reading the transcript).
       sessionPath
-        ? `Your session transcript (the full record of this conversation, including every tool call and result) is at: ${sessionPath}. Your in-context view may be compacted for budget; when you need exact content that was summarized, read that file.`
+        ? `Your session transcript (the full record of this conversation, including every tool call and result) is at: ${sessionPath}. Your in-context view may be summarized for budget; when you need exact content that was summarized, read that file.`
         : "",
     ].filter(Boolean)
   }
@@ -106,7 +106,7 @@ export async function loadAgent(app: App): Promise<Agent> {
  *
  * `busy` and `status` are driven from the agent's authoritative state
  * machine (`agent.on("status")`), covering submit (`streaming`), tool
- * runs (`running-tools`), `/compact` (`compacting`), and abort
+ * runs (`running-tools`), `/handoff` (`handoff`), and abort
  * (`paused`) uniformly. `usage` refreshes on `step-end` since
  * `agent.usage` reflects the last response by then.
  */
