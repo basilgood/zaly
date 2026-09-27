@@ -2,6 +2,7 @@
 .claude
 
 # direnv
+.direnv
 .envrc
 
 # dependencies (bun install)
