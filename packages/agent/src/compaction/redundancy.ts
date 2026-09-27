@@ -66,7 +66,8 @@ export class Redundancy {
   /** True once `window` turns accumulated and the mean novelty has
    *  dropped below the threshold. */
   get degraded(): boolean {
-    const { window, threshold } = this.#opts
+    const { enabled, window, threshold } = this.#opts
+    if (!enabled) return false
     if (this.#recent.length < window) return false
     const mean = this.#recent.reduce((a, b) => a + b, 0) / this.#recent.length
     return mean < threshold
