@@ -45,6 +45,7 @@ function host(): FakeHost {
     $agentNotify: agentNotify,
     $cleanup: cleanup,
     $notify: notify,
+    config: {} as never,
     ctx: {
       agent: {
         compact: vi.fn(async () => {}),

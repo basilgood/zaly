@@ -1,4 +1,5 @@
 import type { LoadedPlugin } from "../plugin.ts"
+import type { PluginConfig } from "../types.ts"
 
 import { AgentApi } from "./agent.ts"
 import { EventsApi } from "./events.ts"
@@ -18,6 +19,11 @@ export class PluginApi {
 
   constructor(plugin: LoadedPlugin) {
     this.#plugin = plugin
+  }
+
+  get config(): PluginConfig {
+    this.#plugin.assertLoaded()
+    return this.#plugin.host.config
   }
 
   get events() {
