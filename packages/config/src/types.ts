@@ -3,6 +3,20 @@ import type { ReasoningEffort } from "@zaly/ai"
 import type { DeepPartial, Simplify } from "@zaly/shared"
 import type { KeyPatterns } from "@zaly/tui"
 
+export type McpServerConfig = {
+  /** Command that starts the server, e.g. `npx`. */
+  command: string
+  /** Arguments passed to the command. */
+  args?: string[]
+  /** Extra environment variables for the server process. */
+  env?: Record<string, string>
+  /** Only register these tools, by the server's own names. Unset means
+   *  every tool the server advertises. */
+  tools?: string[]
+  /** Skip this server without removing its entry. */
+  disabled?: boolean
+}
+
 export type ResourceFilter = {
   /** Whether the plugin is enabled. Defaults to true. */
   enabled?: boolean
@@ -105,6 +119,10 @@ export type ResolvedConfig = {
     ask?: string[]
   }
   plugins?: string[]
+  /** MCP servers exposed as tools by the MCP adapter. */
+  mcp?: {
+    servers?: Record<string, McpServerConfig>
+  }
   keymap?: Record<string, KeyPatterns>
   /** Resource configuration for zaly. */
   resources?: Record<string, ResourceFilter>

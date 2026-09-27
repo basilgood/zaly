@@ -18,6 +18,7 @@ export async function loadPlugins(app: App): Promise<void> {
   }
 
   const host: PluginHost = {
+    config: app.config.$,
     ctx: app.agent.ctx,
     loadTheme: (name: string) => app.ctx.loadTheme(name),
     log: app.ctx,
