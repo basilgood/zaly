@@ -14,7 +14,7 @@ import { Session } from "../src/session/index.ts"
  *  (one per turn). Only the fields `Agent` reads are populated. */
 /** Minimal ModelSpec satisfying the now-required `limit` / `modalities`
  *  fields. Shared by all mock model factories so consumers like
- *  `Notifier` (context-pressure %), `Model.stream` (max-tokens default),
+ *  `Model` (context `limit`), `Model.stream` (max-tokens default),
  *  and the prompt registry can read those fields without crashes.
  *  Numbers chosen large enough that test scenarios never accidentally
  *  trip thresholds. */
@@ -114,8 +114,8 @@ export function throwingModel(message: string): Model {
  *  await a.run()
  *  ``` */
 /** Test-mode wrapper around `Agent.load`. Disables the runtime
- *  notifier by default so injected `<session-started>` / `<time>` /
- *  `<context-pressure>` / etc. messages don't pollute test assertions
+ *  notifier by default so injected `<session-start>` / `<time>` /
+ *  `<handoff>` / etc. messages don't pollute test assertions
  *  about conversation contents. Tests that *want* notifications can
  *  pass `notify: true` (or a `NotifyOptions` object) explicitly.
  *
