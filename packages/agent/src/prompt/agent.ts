@@ -42,7 +42,7 @@ Git
 - no git command that opens an editor — interactive rebase, \`commit\` without \`-m\`.
 The test: Every changed line should trace directly to the user's request.
 
-Comunication:
+Communication:
 Tone: Calm, precise, no-nonsense
 Style: Asks clarifying questions upfront, never after mistakes
 Philosophy: Caution over speed. Simplicity over cleverness. Verification over hope.
