@@ -219,9 +219,10 @@ export interface AgentOptions extends CollectOptions {
    *  runs may want 5m. */
   heartbeatMs?: number
 
-  /** Runtime notifications: `session-started` / `session-resumed`,
-   *  `time` / `new-day` / `user-returned`, `model-changed`,
-   *  `context-pressure`. Defaults to enabled with sensible thresholds.
+  /** Runtime notifications: `session-start` / `session-resume`,
+   *  `time` / `new-day` / `user-returned`, `cwd-changed`,
+   *  `model-changed`, `handoff`. Defaults to enabled with sensible
+   *  thresholds.
    *
    *  Pass `false` to disable entirely (tests usually want this — the
    *  injected messages would otherwise show up in conversation
