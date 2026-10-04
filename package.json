@@ -45,7 +45,7 @@
     "publint": "^0.3.24",
     "tsdown": "^0.23.0",
     "typedoc": "^0.28.20",
-    "typedoc-plugin-markdown": "^4.13.0",
+    "typedoc-plugin-markdown": "^4.13.1",
     "typedoc-vitepress-theme": "^1.1.4",
     "typescript": "7.0.2",
     "vitepress": "^1.6.4",
